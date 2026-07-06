@@ -1,3 +1,4 @@
+import { resolveAppOrigin } from '@/lib/app-url'
 import { requireStoreContext } from '@/lib/store/context'
 import { createClient } from '@/lib/supabase/server'
 import { createStoreQr } from './actions'
@@ -22,8 +23,8 @@ export default async function StoreQrPage({
     .limit(1)
     .maybeSingle()
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
-  const destination = code ? `${appUrl}/s/${code.code}` : ''
+  const appOrigin = await resolveAppOrigin()
+  const destination = code ? `${appOrigin}/s/${code.code}` : ''
   const encodedDestination = encodeURIComponent(destination)
 
   return (
@@ -32,7 +33,7 @@ export default async function StoreQrPage({
         <div>
           <p className="dash-kicker">Store entrance</p>
           <h1>Store QR</h1>
-          <p>One permanent QR for your “Skip the queue here” banner.</p>
+          <p>One permanent QR for your "Skip the queue here" banner.</p>
         </div>
         {!code ? (
           <form action={createStoreQr.bind(null, vendorId)}>

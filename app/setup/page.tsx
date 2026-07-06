@@ -19,7 +19,7 @@ export default async function SetupPage() {
       <section className="auth-panel setup-panel">
         <p className="dash-kicker">First store</p>
         <h1>Give Glide a place.</h1>
-        <p>This creates the merchant and first operating branch. You can add aisles and QR zones inside the dashboard.</p>
+        <p>This creates the merchant and first operating branch. You can add products, staff, and your permanent store QR inside the dashboard.</p>
         <form className="auth-form" action={createStore}>
           <label><span>Store name</span><input name="name" placeholder="Genesis Supermarket" required /></label>
           <label><span>Store URL name</span><input name="slug" placeholder="genesis-supermarket" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" required /></label>
