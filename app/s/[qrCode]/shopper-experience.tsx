@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { startTransition, useEffect, useRef, useState } from 'react'
 import { formatNaira } from '@/lib/store/format'
 
@@ -32,6 +31,8 @@ type BarcodeDetectorLike = {
   detect(source: HTMLVideoElement): Promise<Array<{ rawValue?: string }>>
 }
 
+type ViewState = 'splash' | 'loading' | 'dashboard'
+
 declare global {
   interface Window {
     BarcodeDetector?: {
@@ -56,32 +57,39 @@ export function ShopperExperience({
   paymentCancelled,
 }: ShopperExperienceProps) {
   const cartKey = `glide-cart:${merchantId}:${qrCode}`
+  const cartOrderKey = `glide-cart-order:${merchantId}:${qrCode}`
   const sessionKey = `glide-session:${merchantId}:${qrCode}`
   const emailKey = `glide-email:${merchantId}:${qrCode}`
-  const [started, setStarted] = useState(initialStarted)
+  const [view, setView] = useState<ViewState>(initialStarted ? 'dashboard' : 'splash')
   const [hydrated, setHydrated] = useState(false)
   const [sessionId, setSessionId] = useState('')
   const [cart, setCart] = useState<Record<string, number>>({})
+  const [cartOrder, setCartOrder] = useState<string[]>([])
   const [customerEmail, setCustomerEmail] = useState('')
-  const [barcodeInput, setBarcodeInput] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [selectedQuantity, setSelectedQuantity] = useState(1)
-  const [cartOpen, setCartOpen] = useState(false)
   const [scanError, setScanError] = useState('')
-  const [checkoutError, setCheckoutError] = useState(paymentCancelled ? 'Payment was cancelled. Your cart is still here.' : '')
+  const [checkoutError, setCheckoutError] = useState(
+    paymentCancelled ? 'Payment was cancelled. Your cart is still here.' : '',
+  )
   const [checkoutBusy, setCheckoutBusy] = useState(false)
   const [scannerOpen, setScannerOpen] = useState(false)
   const [scannerError, setScannerError] = useState('')
   const [scannerReady, setScannerReady] = useState(false)
-  const [cartPulse, setCartPulse] = useState(false)
-  const [lastAddedId, setLastAddedId] = useState('')
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const frameRef = useRef<number | null>(null)
+  const cartSectionRef = useRef<HTMLElement | null>(null)
 
-  const cartLines: CartLine[] = Object.entries(cart).map(([productId, quantity]) => ({
+  const shopperId = sessionId ? sessionId.replace(/-/g, '').slice(0, 8).toUpperCase() : '...'
+  const orderedProductIds = [
+    ...cartOrder.filter((productId) => cart[productId] > 0),
+    ...Object.keys(cart).filter((productId) => cart[productId] > 0 && !cartOrder.includes(productId)),
+  ]
+  const cartLines: CartLine[] = orderedProductIds.map((productId) => ({
     productId,
-    quantity,
+    quantity: cart[productId],
   }))
 
   const enrichedCart = cartLines
@@ -98,6 +106,18 @@ export function ShopperExperience({
 
   const totalItems = enrichedCart.reduce((sum, line) => sum + line.quantity, 0)
   const totalKobo = enrichedCart.reduce((sum, line) => sum + line.total, 0)
+  const searchResults = searchQuery.trim()
+    ? products
+        .filter((product) => {
+          const query = searchQuery.trim().toLowerCase()
+          return (
+            product.name.toLowerCase().includes(query) ||
+            product.category?.toLowerCase().includes(query) ||
+            product.barcode?.includes(query)
+          )
+        })
+        .slice(0, 6)
+    : []
 
   useEffect(() => {
     const existingSession = localStorage.getItem(sessionKey)
@@ -114,26 +134,30 @@ export function ShopperExperience({
       }
     }
 
+    const storedOrder = localStorage.getItem(cartOrderKey)
+    if (storedOrder) {
+      try {
+        setCartOrder(JSON.parse(storedOrder) as string[])
+      } catch {
+        localStorage.removeItem(cartOrderKey)
+      }
+    }
+
     const storedEmail = localStorage.getItem(emailKey)
     if (storedEmail) setCustomerEmail(storedEmail)
     setHydrated(true)
-  }, [cartKey, emailKey, sessionKey])
+  }, [cartKey, cartOrderKey, emailKey, sessionKey])
 
   useEffect(() => {
     if (!hydrated) return
     localStorage.setItem(cartKey, JSON.stringify(cart))
-  }, [cart, cartKey, hydrated])
+    localStorage.setItem(cartOrderKey, JSON.stringify(cartOrder))
+  }, [cart, cartKey, cartOrder, cartOrderKey, hydrated])
 
   useEffect(() => {
     if (!hydrated) return
     if (customerEmail) localStorage.setItem(emailKey, customerEmail)
   }, [customerEmail, emailKey, hydrated])
-
-  useEffect(() => {
-    if (!cartPulse) return
-    const timer = window.setTimeout(() => setCartPulse(false), 360)
-    return () => window.clearTimeout(timer)
-  }, [cartPulse])
 
   useEffect(() => {
     return () => {
@@ -144,58 +168,12 @@ export function ShopperExperience({
     }
   }, [])
 
-  function findProductByBarcode(barcode: string) {
-    const normalized = normalizeBarcode(barcode)
-    return products.find((product) => product.barcode && normalizeBarcode(product.barcode) === normalized) ?? null
-  }
-
-  function openScannedProduct(product: Product) {
-    setSelectedProduct(product)
-    setSelectedQuantity(1)
-    setScanError('')
-    setStarted(true)
-  }
-
-  function handleBarcode(barcode: string) {
-    const product = findProductByBarcode(barcode)
-    if (!product) {
-      setScanError('That barcode does not match any live product in this store.')
-      return false
-    }
-
-    openScannedProduct(product)
-    return true
-  }
-
-  function submitBarcode(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const matched = handleBarcode(barcodeInput)
-    if (matched) setBarcodeInput('')
-  }
-
-  function updateCart(productId: string, quantity: number) {
-    setCart((current) => {
-      const next = { ...current }
-      if (quantity <= 0) delete next[productId]
-      else next[productId] = quantity
-      return next
-    })
-  }
-
-  function addSelectionToCart() {
-    if (!selectedProduct) return
-    const nextQuantity = (cart[selectedProduct.id] ?? 0) + selectedQuantity
-    updateCart(selectedProduct.id, nextQuantity)
-    setCartPulse(true)
-    setLastAddedId(selectedProduct.id)
-    setCartOpen(true)
-  }
-
   useEffect(() => {
     if (!scannerOpen) return
     if (!window.BarcodeDetector) {
-      setScannerError('Camera barcode scanning is not supported on this device yet. Use the barcode input instead.')
-      setScannerOpen(false)
+      setScannerError(
+        'Camera barcode scanning is not supported on this device yet. Use search or barcode entry instead.',
+      )
       return
     }
 
@@ -204,9 +182,7 @@ export function ShopperExperience({
     const startScanner = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: { ideal: 'environment' },
-          },
+          video: { facingMode: { ideal: 'environment' } },
           audio: false,
         })
 
@@ -223,20 +199,18 @@ export function ShopperExperience({
         setScannerReady(true)
 
         const Detector = window.BarcodeDetector
-        if (!Detector) {
-          setScannerError('Camera barcode scanning is not supported on this device yet. Use the barcode input instead.')
-          closeScanner()
-          return
-        }
+        if (!Detector) return
+        const detector = new Detector({
+          formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128'],
+        })
 
-        const detector = new Detector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128'] })
         const scanFrame = async () => {
           if (!videoRef.current || !active) return
           try {
             const results = await detector.detect(videoRef.current)
             const barcode = results[0]?.rawValue
             if (barcode && handleBarcode(barcode)) {
-              closeScanner()
+              stopScanner()
               return
             }
           } catch {
@@ -261,13 +235,14 @@ export function ShopperExperience({
     }
   }, [scannerOpen])
 
-  function beginScanner() {
-    setScannerError('')
-    setScannerReady(false)
-    setScannerOpen(true)
+  function startSession() {
+    setView('loading')
+    window.setTimeout(() => {
+      setView('dashboard')
+    }, 650)
   }
 
-  function closeScanner() {
+  function stopScanner() {
     setScannerOpen(false)
     setScannerReady(false)
     if (frameRef.current) {
@@ -280,6 +255,107 @@ export function ShopperExperience({
     }
   }
 
+  function findProductByBarcode(barcode: string) {
+    const normalized = normalizeBarcode(barcode)
+    return (
+      products.find(
+        (product) => product.barcode && normalizeBarcode(product.barcode) === normalized,
+      ) ?? null
+    )
+  }
+
+  function openProduct(product: Product) {
+    setSelectedProduct(product)
+    setSelectedQuantity(cart[product.id] ?? 1)
+    setSearchQuery('')
+    setScanError('')
+    setView('dashboard')
+  }
+
+  function handleBarcode(barcode: string) {
+    const product = findProductByBarcode(barcode)
+    if (!product) {
+      setScanError('That barcode does not match any live product in this store.')
+      return false
+    }
+
+    openProduct(product)
+    return true
+  }
+
+  function submitSearch(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const normalized = searchQuery.trim()
+    if (!normalized) return
+
+    const matched = handleBarcode(normalized)
+    if (matched) {
+      setSearchQuery('')
+      return
+    }
+
+    const firstResult = searchResults[0]
+    if (firstResult) {
+      openProduct(firstResult)
+      return
+    }
+
+    setScanError('No matching item found in this store.')
+  }
+
+  function updateCart(productId: string, quantity: number) {
+    setCart((current) => {
+      const next = { ...current }
+      if (quantity <= 0) delete next[productId]
+      else next[productId] = quantity
+      return next
+    })
+
+    setCartOrder((current) => {
+      if (quantity <= 0) return current.filter((id) => id !== productId)
+      if (current.includes(productId)) return current
+      return [...current, productId]
+    })
+  }
+
+  function applyProductSelection() {
+    if (!selectedProduct) return
+    updateCart(selectedProduct.id, selectedQuantity)
+    setSelectedProduct(null)
+  }
+
+  function removeSelectedProduct() {
+    if (!selectedProduct) return
+    updateCart(selectedProduct.id, 0)
+    setSelectedProduct(null)
+  }
+
+  function beginScanner() {
+    setScannerError('')
+    setScannerReady(false)
+    setScannerOpen(true)
+  }
+
+  function endSession() {
+    stopScanner()
+    localStorage.removeItem(cartKey)
+    localStorage.removeItem(cartOrderKey)
+    localStorage.removeItem(sessionKey)
+    localStorage.removeItem(emailKey)
+    const freshSession = crypto.randomUUID()
+    localStorage.setItem(sessionKey, freshSession)
+    setSessionId(freshSession)
+    setCart({})
+    setCartOrder([])
+    setCustomerEmail('')
+    setSearchQuery('')
+    setSelectedProduct(null)
+    setSelectedQuantity(1)
+    setCheckoutError('')
+    setScanError('')
+    setView('splash')
+  }
+
   async function checkoutNow() {
     if (!totalItems) {
       setCheckoutError('Add at least one item to the cart before checkout.')
@@ -288,7 +364,7 @@ export function ShopperExperience({
 
     if (!customerEmail.trim()) {
       setCheckoutError('Enter the customer email to receive the receipt.')
-      setCartOpen(true)
+      cartSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       return
     }
 
@@ -311,7 +387,10 @@ export function ShopperExperience({
       }),
     })
 
-    const payload = (await response.json().catch(() => null)) as { checkoutUrl?: string; error?: string } | null
+    const payload = (await response.json().catch(() => null)) as
+      | { checkoutUrl?: string; error?: string }
+      | null
+
     if (!response.ok || !payload?.checkoutUrl) {
       setCheckoutBusy(false)
       setCheckoutError(payload?.error ?? 'Checkout could not be started.')
@@ -325,199 +404,203 @@ export function ShopperExperience({
 
   return (
     <main className="scan-page shopper-page">
-      <section className="scan-shell">
-        <header className={`shopper-topbar ${cartPulse ? 'cart-pulse' : ''}`}>
-          <button className="shopper-store" type="button" onClick={() => setStarted(false)}>
-            <span className="scan-kicker">Now shopping</span>
-            <strong>{merchant.name}</strong>
-            <small>{location ? `${location.name}${location.city ? `, ${location.city}` : ''}` : 'Glide store'}</small>
-          </button>
-
-          <div className="shopper-top-actions">
-            <div className="shopper-total">
-              <span>Running total</span>
-              <strong>{formatNaira(totalKobo)}</strong>
-            </div>
-            <button className={`cart-chip ${cartPulse ? 'is-bouncing' : ''}`} type="button" onClick={() => setCartOpen(true)}>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h2l2.1 9.2a1 1 0 0 0 1 .8h7.7a1 1 0 0 0 1-.8L20 8H8" /><circle cx="10" cy="19" r="1.4" /><circle cx="17" cy="19" r="1.4" /></svg>
-              <span>{totalItems}</span>
-            </button>
-            <button className="checkout-chip" type="button" disabled={!totalItems || checkoutBusy} onClick={() => {
-              setCartOpen(true)
-              void checkoutNow()
-            }}>
-              {checkoutBusy ? 'Redirecting...' : 'Checkout now'}
+      {view === 'splash' ? (
+        <section className="scan-shell shopper-shell splash-shell">
+          <div className="shopper-splash refined">
+            <span>Glide Self-Checkout</span>
+            <h1>Welcome to {merchant.name}</h1>
+            <p>Self Checkout Simplified</p>
+            <button className="scan-primary splash-cta" type="button" onClick={startSession}>
+              Start Session
             </button>
           </div>
-        </header>
-
-        {!started ? (
-          <div className="scan-welcome">
-            <p className="scan-kicker">Welcome to Glide</p>
-            <h1>Skip the queue. Start from where you stand.</h1>
-            <p className="scan-copy">
-              You are now shopping at {merchant.name}
-              {location ? ` - ${location.name}${location.city ? `, ${location.city}` : ''}` : ''}.
-            </p>
-            <div className="scan-actions">
-              <button className="scan-primary" type="button" onClick={() => setStarted(true)}>
-                Start Self-Checkout
-              </button>
-            </div>
-          </div>
-        ) : (
-          <section className="shopper-stage">
-            <div className="scan-console">
-              <div className="scan-console-copy">
-                <p className="scan-kicker">Store session live</p>
-                <h1>Scan what you want.</h1>
-                <p>Use the camera scanner or type the product barcode. Each scan pulls the live store price directly from Glide.</p>
-              </div>
-
-              <div className="scan-console-actions">
-                <button className="scan-primary" type="button" onClick={() => void beginScanner()}>
-                  Scan item
-                </button>
-                <form className="barcode-form" onSubmit={submitBarcode}>
-                  <label>
-                    <span>Barcode</span>
-                    <input
-                      value={barcodeInput}
-                      onChange={(event) => setBarcodeInput(event.target.value)}
-                      inputMode="numeric"
-                      placeholder="Type or scan product barcode"
-                      autoComplete="off"
-                    />
-                  </label>
-                  <button type="submit">Find item</button>
-                </form>
-              </div>
-            </div>
-
-            {scanError ? <p className="scan-feedback error">{scanError}</p> : null}
-            {checkoutError ? <p className="scan-feedback error">{checkoutError}</p> : null}
-
-            {selectedProduct ? (
-              <section className={`scan-hit-card ${lastAddedId === selectedProduct.id ? 'is-added' : ''}`}>
-                <div>
-                  <p className="scan-kicker">Scanned item</p>
-                  <h2>{selectedProduct.name}</h2>
-                  <p>{selectedProduct.category || 'General merchandise'}</p>
-                </div>
-                <div className="scan-hit-actions">
-                  <strong>{formatNaira(selectedProduct.priceKobo)}</strong>
-                  <div className="quantity-stepper">
-                    <button type="button" onClick={() => setSelectedQuantity((current) => Math.max(1, current - 1))}>-</button>
-                    <span>{selectedQuantity}</span>
-                    <button type="button" onClick={() => setSelectedQuantity((current) => current + 1)}>+</button>
-                  </div>
-                  <button className="scan-primary compact" type="button" onClick={addSelectionToCart}>
-                    Add to cart
-                  </button>
-                </div>
-              </section>
-            ) : (
-              <section className="scan-empty-state">
-                <span>Ready for the first scan</span>
-                <p>Point the camera at a product barcode or enter the digits manually.</p>
-              </section>
-            )}
-
-            <section className="catalog-strip">
-              <div className="scan-surface-head">
-                <strong>{products.length} live products</strong>
-                <span>Tap any product to add it manually</span>
-              </div>
-              <div className="catalog-grid">
-                {products.map((product) => (
-                  <button className="catalog-card" key={product.id} type="button" onClick={() => openScannedProduct(product)}>
-                    <span>{product.category || 'General'}</span>
-                    <strong>{product.name}</strong>
-                    <small>{formatNaira(product.priceKobo)}</small>
-                  </button>
-                ))}
-              </div>
-            </section>
-          </section>
-        )}
-      </section>
-
-      {scannerOpen ? (
-        <div className="scanner-overlay">
-          <div className="scanner-card">
-            <div className="scanner-head">
-              <div>
-                <p className="scan-kicker">Camera scanner</p>
-                <strong>{scannerReady ? 'Align the barcode inside the frame.' : 'Starting camera...'}</strong>
-              </div>
-              <button type="button" onClick={closeScanner}>Close</button>
-            </div>
-            <div className="scanner-frame">
-              <video ref={videoRef} playsInline muted />
-              <div className="scanner-target" />
-            </div>
-            {scannerError ? <p className="scan-feedback error">{scannerError}</p> : null}
-          </div>
-        </div>
+        </section>
       ) : null}
 
-      {cartOpen ? (
-        <div className="cart-overlay">
-          <aside className="cart-panel">
-            <header>
-              <div>
-                <p className="scan-kicker">Your cart</p>
-                <h2>{totalItems} item{totalItems === 1 ? '' : 's'}</h2>
-              </div>
-              <button type="button" onClick={() => setCartOpen(false)}>Close</button>
-            </header>
+      {view === 'loading' ? (
+        <section className="scan-shell shopper-shell splash-shell">
+          <div className="shopper-loading">
+            <span />
+            <h2>Opening Glide</h2>
+            <p>Creating shopper {shopperId} for {merchant.name}.</p>
+          </div>
+        </section>
+      ) : null}
 
-            <label className="cart-email-field">
-              <span>Receipt email</span>
-              <input
-                value={customerEmail}
-                onChange={(event) => setCustomerEmail(event.target.value)}
-                type="email"
-                placeholder="name@example.com"
-              />
-            </label>
+      {view === 'dashboard' ? (
+        <section className="scan-shell shopper-shell">
+          <header className="shopper-topbar refined">
+            <div className="shopper-title">
+              <p className="scan-kicker">Welcome shopper {shopperId}</p>
+              <strong>{merchant.name}</strong>
+              <small>{location ? `${location.name}${location.city ? `, ${location.city}` : ''}` : 'Glide session'}</small>
+            </div>
+            <div className="shopper-total-card">
+              <span>Total</span>
+              <strong>{formatNaira(totalKobo)}</strong>
+            </div>
+          </header>
 
-            {enrichedCart.length ? (
-              <div className="cart-lines">
-                {enrichedCart.map((line) => (
-                  <article className="cart-line" key={line.product.id}>
-                    <div>
-                      <strong>{line.product.name}</strong>
-                      <span>{formatNaira(line.product.priceKobo)} each</span>
+          <section className="shopper-dashboard refined">
+            <section className="camera-stage refined">
+              <div className="camera-frame live refined">
+                {scannerOpen ? (
+                  <>
+                    <video ref={videoRef} playsInline muted />
+                    <div className="camera-guide" />
+                    <div className="camera-status">
+                      <span>{scannerReady ? 'Scanner live' : 'Opening camera...'}</span>
+                      <button type="button" onClick={stopScanner}>Stop</button>
                     </div>
-                    <div className="cart-line-actions">
-                      <div className="quantity-stepper">
-                        <button type="button" onClick={() => updateCart(line.product.id, line.quantity - 1)}>-</button>
-                        <span>{line.quantity}</span>
-                        <button type="button" onClick={() => updateCart(line.product.id, line.quantity + 1)}>+</button>
-                      </div>
-                      <strong>{formatNaira(line.total)}</strong>
-                    </div>
-                  </article>
-                ))}
+                  </>
+                ) : (
+                  <div className="camera-idle refined">
+                    <p className="scan-kicker">Scan camera</p>
+                    <h2>Scan item barcode</h2>
+                    <p>Point your camera at an item barcode.</p>
+                    <button className="scan-primary compact" type="button" onClick={beginScanner}>
+                      Open Camera
+                    </button>
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="scan-empty-state cart-empty">
-                <span>No items yet</span>
-                <p>Scan a product or tap one from the live catalog to start building the cart.</p>
-              </div>
-            )}
 
-            <footer className="cart-footer">
-              <div>
-                <span>Total</span>
-                <strong>{formatNaira(totalKobo)}</strong>
-              </div>
-              <button className="scan-primary" type="button" disabled={!totalItems || checkoutBusy} onClick={() => void checkoutNow()}>
-                {checkoutBusy ? 'Redirecting...' : 'Pay now'}
+              <form className="manual-scan-bar refined" onSubmit={submitSearch}>
+                <input
+                  value={searchQuery}
+                  onChange={(event) => {
+                    setSearchQuery(event.target.value)
+                    setScanError('')
+                  }}
+                  inputMode="search"
+                  placeholder="Search Item"
+                  autoComplete="off"
+                />
+                <button type="submit">Search</button>
+              </form>
+
+              {searchResults.length ? (
+                <div className="search-results">
+                  {searchResults.map((product) => (
+                    <button key={product.id} type="button" onClick={() => openProduct(product)}>
+                      <span>{product.category || 'Item'}</span>
+                      <strong>{product.name}</strong>
+                      <small>{formatNaira(product.priceKobo)}</small>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </section>
+
+            <div className="dashboard-actions">
+              <button
+                className="cart-chip wide"
+                type="button"
+                onClick={() => cartSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              >
+                View Cart
+                <span>{totalItems}</span>
               </button>
-            </footer>
-          </aside>
+              <button className="checkout-chip wide" type="button" disabled={!totalItems || checkoutBusy} onClick={() => void checkoutNow()}>
+                {checkoutBusy ? 'Redirecting...' : 'Checkout'}
+              </button>
+            </div>
+
+            <button className="session-end wide" type="button" onClick={endSession}>
+              End Session
+            </button>
+
+            {scanError ? <p className="scan-feedback error">{scanError}</p> : null}
+            {scannerError ? <p className="scan-feedback error">{scannerError}</p> : null}
+            {checkoutError ? <p className="scan-feedback error">{checkoutError}</p> : null}
+
+            <section className="cart-page-body embedded" ref={cartSectionRef}>
+              <div className="cart-section-head">
+                <div>
+                  <p className="scan-kicker">Cart</p>
+                  <h2>Items scanned</h2>
+                </div>
+                <strong>{totalItems}</strong>
+              </div>
+
+              <label className="cart-email-field">
+                <span>Receipt email</span>
+                <input
+                  value={customerEmail}
+                  onChange={(event) => setCustomerEmail(event.target.value)}
+                  type="email"
+                  placeholder="name@example.com"
+                />
+              </label>
+
+              {enrichedCart.length ? (
+                <div className="cart-page-lines">
+                  {enrichedCart.map((line, index) => (
+                    <article className="cart-page-line" key={line.product.id}>
+                      <button className="cart-line-main" type="button" onClick={() => openProduct(line.product)}>
+                        <span className="scan-order">{String(index + 1).padStart(2, '0')}</span>
+                        <div>
+                          <strong>{line.product.name}</strong>
+                          <span>{line.product.category || 'General merchandise'}</span>
+                        </div>
+                        <small>{formatNaira(line.product.priceKobo)} each</small>
+                      </button>
+                      <div className="cart-page-meta">
+                        <span>{line.quantity} item{line.quantity === 1 ? '' : 's'}</span>
+                        <strong>{formatNaira(line.total)}</strong>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="scan-empty-state cart-empty">
+                  <span>No items yet</span>
+                  <p>Scanned items will appear here in order.</p>
+                </div>
+              )}
+
+              <footer className="cart-page-footer">
+                <div>
+                  <span>Total</span>
+                  <strong>{formatNaira(totalKobo)}</strong>
+                </div>
+                <button className="scan-primary full" type="button" disabled={!totalItems || checkoutBusy} onClick={() => void checkoutNow()}>
+                  {checkoutBusy ? 'Redirecting...' : 'Pay Now'}
+                </button>
+              </footer>
+            </section>
+          </section>
+        </section>
+      ) : null}
+
+      {selectedProduct ? (
+        <div className="scanner-overlay">
+          <div className="item-modal">
+            <div className="item-modal-copy">
+              <p className="scan-kicker">Selected item</p>
+              <h2>{selectedProduct.name}</h2>
+              <p>{selectedProduct.category || 'General merchandise'}</p>
+              <strong>{formatNaira(selectedProduct.priceKobo)}</strong>
+            </div>
+            <div className="item-modal-actions">
+              <div className="quantity-stepper large">
+                <button type="button" onClick={() => setSelectedQuantity((current) => Math.max(1, current - 1))}>-</button>
+                <span>{selectedQuantity}</span>
+                <button type="button" onClick={() => setSelectedQuantity((current) => current + 1)}>+</button>
+              </div>
+              <button className="scan-primary full" type="button" onClick={applyProductSelection}>
+                Update Cart
+              </button>
+              {(cart[selectedProduct.id] ?? 0) > 0 ? (
+                <button className="modal-ghost danger" type="button" onClick={removeSelectedProduct}>
+                  Remove from cart
+                </button>
+              ) : null}
+              <button className="modal-ghost" type="button" onClick={() => setSelectedProduct(null)}>
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
     </main>
