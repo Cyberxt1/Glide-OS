@@ -419,17 +419,21 @@
 
 .action-drawer > form {
   position: fixed;
-  top: 0;
-  right: 0;
+  top: 50%;
+  left: 50%;
   z-index: 70;
   display: flex;
-  width: min(28rem, 100vw);
-  height: 100svh;
+  width: min(30rem, calc(100vw - 2rem));
+  max-height: min(46rem, calc(100svh - 2rem));
   flex-direction: column;
   gap: 1rem;
   padding: 2rem;
+  overflow-y: auto;
+  border: 1px solid #d8d9d2;
+  border-radius: 1.15rem;
   background: #f9f9f5;
-  box-shadow: -2rem 0 5rem rgb(20 22 18 / 14%);
+  box-shadow: 0 2rem 6rem rgb(20 22 18 / 25%);
+  transform: translate(-50%, -50%);
   animation: drawer-enter 220ms ease both;
 }
 
@@ -636,7 +640,7 @@
 
 @keyframes drawer-enter {
   from {
-    transform: translateX(2rem);
+    transform: translate(-50%, calc(-50% + 1rem)) scale(0.98);
     opacity: 0;
   }
 }
