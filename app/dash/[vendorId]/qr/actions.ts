@@ -6,7 +6,7 @@ import { redirect } from 'next/navigation'
 import { requireStoreContext } from '@/lib/store/context'
 import { createClient } from '@/lib/supabase/server'
 
-export async function createStoreQr(vendorId: string) {
+async function issueStoreQr(vendorId: string, rotateExisting: boolean) {
   const store = await requireStoreContext(vendorId)
   if (!store.roles.includes('admin')) redirect(`/dash/${vendorId}/qr?error=access`)
   if (!store.location) redirect(`/dash/${vendorId}/qr?error=location`)
@@ -20,12 +20,25 @@ export async function createStoreQr(vendorId: string) {
     .limit(1)
     .maybeSingle()
 
-  if (existing) redirect(`/dash/${vendorId}/qr`)
+  if (existing && !rotateExisting) redirect(`/dash/${vendorId}/qr`)
+  if (!existing && rotateExisting) redirect(`/dash/${vendorId}/qr`)
 
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  const { error } = await supabase.from('qr_codes').insert({
+
+  if (existing) {
+    const { error: disableError } = await supabase
+      .from('qr_codes')
+      .update({
+        status: 'disabled',
+      })
+      .eq('id', existing.id)
+
+    if (disableError) redirect(`/dash/${vendorId}/qr?error=rotation`)
+  }
+
+  const { error: insertError } = await supabase.from('qr_codes').insert({
     code: `qr_${randomBytes(9).toString('base64url')}`,
     merchant_id: store.id,
     location_id: store.location.id,
@@ -34,8 +47,27 @@ export async function createStoreQr(vendorId: string) {
     activated_by: user?.id,
   })
 
-  if (error) redirect(`/dash/${vendorId}/qr?error=generation`)
+  if (insertError) {
+    if (existing) {
+      await supabase
+        .from('qr_codes')
+        .update({
+          status: 'active',
+        })
+        .eq('id', existing.id)
+    }
+
+    redirect(`/dash/${vendorId}/qr?error=${rotateExisting ? 'rotation' : 'generation'}`)
+  }
 
   revalidatePath(`/dash/${vendorId}/qr`)
-  redirect(`/dash/${vendorId}/qr?created=1`)
+  redirect(`/dash/${vendorId}/qr?${rotateExisting ? 'rotated=1' : 'created=1'}`)
+}
+
+export async function createStoreQr(vendorId: string) {
+  await issueStoreQr(vendorId, false)
+}
+
+export async function regenerateStoreQr(vendorId: string) {
+  await issueStoreQr(vendorId, true)
 }

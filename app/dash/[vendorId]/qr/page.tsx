@@ -1,14 +1,21 @@
 import { resolveAppOrigin } from '@/lib/app-url'
 import { requireStoreContext } from '@/lib/store/context'
 import { createClient } from '@/lib/supabase/server'
-import { createStoreQr } from './actions'
+import { createStoreQr, regenerateStoreQr } from './actions'
+
+const qrErrors: Record<string, string> = {
+  access: 'Administrator access is required to manage the store QR.',
+  location: 'Create a store location before generating the store QR.',
+  generation: 'The store QR could not be generated right now. Try again in a moment.',
+  rotation: 'The existing store QR could not be rotated right now. Try again in a moment.',
+}
 
 export default async function StoreQrPage({
   params,
   searchParams,
 }: {
   params: Promise<{ vendorId: string }>
-  searchParams: Promise<{ created?: string; error?: string }>
+  searchParams: Promise<{ created?: string; rotated?: string; error?: string }>
 }) {
   const { vendorId } = await params
   const query = await searchParams
@@ -35,15 +42,22 @@ export default async function StoreQrPage({
           <h1>Store QR</h1>
           <p>One permanent QR for your "Skip the queue here" banner.</p>
         </div>
-        {!code ? (
-          <form action={createStoreQr.bind(null, vendorId)}>
-            <button className="page-action" type="submit">Generate store QR <span>+</span></button>
-          </form>
-        ) : null}
+        <div className="head-actions">
+          {!code ? (
+            <form action={createStoreQr.bind(null, vendorId)}>
+              <button className="page-action" type="submit">Generate store QR <span>+</span></button>
+            </form>
+          ) : (
+            <form action={regenerateStoreQr.bind(null, vendorId)}>
+              <button className="page-action" type="submit">Regenerate QR <span>&#8635;</span></button>
+            </form>
+          )}
+        </div>
       </header>
 
       {query.created ? <p className="inventory-notice success">Your permanent store QR is ready for the graphics designer.</p> : null}
-      {query.error ? <p className="inventory-notice error">The store QR could not be generated. Confirm that this store has a location.</p> : null}
+      {query.rotated ? <p className="inventory-notice success">A fresh store QR has been issued. Re-download it before printing or sharing.</p> : null}
+      {query.error ? <p className="inventory-notice error">{qrErrors[query.error] ?? 'The store QR request could not be completed.'}</p> : null}
 
       {code ? (
         <section className="store-qr-layout">
@@ -63,6 +77,7 @@ export default async function StoreQrPage({
               <a href={`/api/barcode?type=qr&format=svg&text=${encodedDestination}`} download={`${store.slug}-glide-qr.svg`}>Download SVG <span>Best for design</span></a>
               <a href={`/api/barcode?type=qr&text=${encodedDestination}`} download={`${store.slug}-glide-qr.png`}>Download PNG <span>High resolution</span></a>
             </div>
+            <p>Regenerating retires the old banner code and replaces it with this new one.</p>
           </div>
         </section>
       ) : (
