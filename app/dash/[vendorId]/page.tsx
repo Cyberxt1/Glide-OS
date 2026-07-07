@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { requireStoreContext } from '@/lib/store/context'
 import { formatNaira, formatTime, readableStatus } from '@/lib/store/format'
+import { orderShortCode } from '@/lib/store/types'
 import { createClient } from '@/lib/supabase/server'
 
 export default async function StoreOverviewPage({
@@ -17,7 +18,7 @@ export default async function StoreOverviewPage({
   const [{ data: orders }, { data: inventory }] = await Promise.all([
     supabase
       .from('orders')
-      .select('id, short_code, status, total_kobo, created_at')
+      .select('id, status, total_kobo, created_at')
       .eq('merchant_id', store.id)
       .gte('created_at', today.toISOString())
       .order('created_at', { ascending: false })
@@ -47,7 +48,7 @@ export default async function StoreOverviewPage({
         <div>
           <p className="dash-kicker">Live operations</p>
           <h1>Good day, {store.name}.</h1>
-          <p>{store.location ? `${store.location.name}${store.location.city ? ` · ${store.location.city}` : ''}` : 'Add a store location to begin trading.'}</p>
+          <p>{store.location ? `${store.location.name}${store.location.city ? ` - ${store.location.city}` : ''}` : 'Add a store location to begin trading.'}</p>
         </div>
         <span className="live-status"><i /> Live now</span>
       </header>
@@ -61,28 +62,35 @@ export default async function StoreOverviewPage({
 
       <section className="overview-grid">
         <div className="dash-surface activity-surface">
-          <div className="surface-head"><div><p className="dash-kicker">Today</p><h2>Order movement</h2></div><Link href={`/dash/${store.slug}/orders`} prefetch>View all <span>↗</span></Link></div>
+          <div className="surface-head">
+            <div><p className="dash-kicker">Today</p><h2>Order movement</h2></div>
+            <Link href={`/dash/${store.slug}/orders`} prefetch>View all <span>-&gt;</span></Link>
+          </div>
           {todaysOrders.length ? (
             <div className="activity-list">
               {todaysOrders.slice(0, 6).map((order) => (
                 <Link href={`/dash/${store.slug}/orders`} prefetch key={order.id}>
                   <span className={`status-orb status-${order.status}`} />
-                  <span><strong>Order {order.short_code}</strong><small>{formatTime(order.created_at)}</small></span>
+                  <span><strong>Order {orderShortCode(order.id)}</strong><small>{formatTime(order.created_at)}</small></span>
                   <span className="status-label">{readableStatus(order.status)}</span>
                   <strong>{formatNaira(order.total_kobo)}</strong>
                 </Link>
               ))}
             </div>
           ) : (
-            <div className="truthful-empty"><span>Quiet for now</span><h3>Your first verified order will appear here.</h3><p>This view updates from Supabase in real time—nothing is simulated.</p></div>
+            <div className="truthful-empty">
+              <span>Quiet for now</span>
+              <h3>Your first verified order will appear here.</h3>
+              <p>This view updates from Supabase in real time. Nothing is simulated.</p>
+            </div>
           )}
         </div>
 
         <aside className="dash-surface control-surface">
           <div className="surface-head"><div><p className="dash-kicker">Quick shift</p><h2>Open a workspace</h2></div></div>
-          {store.roles.includes('cashier') ? <Link href={`/dash/${store.slug}/cashier`} prefetch><span>Cashier fulfilment</span><strong>Pack paid orders</strong><i>↗</i></Link> : null}
-          {store.roles.includes('security') ? <Link href={`/dash/${store.slug}/security`} prefetch><span>Security gate</span><strong>Verify customer exits</strong><i>↗</i></Link> : null}
-          {store.roles.includes('admin') ? <Link href={`/dash/${store.slug}/inventory`} prefetch><span>Inventory</span><strong>Review stock levels</strong><i>↗</i></Link> : null}
+          {store.roles.includes('cashier') ? <Link href={`/dash/${store.slug}/cashier`} prefetch><span>Cashier fulfilment</span><strong>Pack paid orders</strong><i>-&gt;</i></Link> : null}
+          {store.roles.includes('security') ? <Link href={`/dash/${store.slug}/security`} prefetch><span>Security gate</span><strong>Verify customer exits</strong><i>-&gt;</i></Link> : null}
+          {store.roles.includes('admin') ? <Link href={`/dash/${store.slug}/inventory`} prefetch><span>Inventory</span><strong>Review stock levels</strong><i>-&gt;</i></Link> : null}
         </aside>
       </section>
     </div>

@@ -34,3 +34,11 @@ export type OperationalOrder = {
   exit_token: string | null
   order_items: OrderItem[]
 }
+
+export function orderShortCode(orderId: string) {
+  return orderId.replaceAll('-', '').slice(0, 6).toUpperCase()
+}
+
+export function orderPurchaseCode(orderId: string) {
+  return `GLD-${orderId.replaceAll('-', '').slice(0, 10).toUpperCase()}`
+}

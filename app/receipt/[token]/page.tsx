@@ -14,8 +14,8 @@ export default async function ReceiptPage({
   const admin = createAdminClient()
   const { data: order } = await admin
     .from('orders')
-    .select('id, short_code, purchase_code, status, total_kobo, currency, paid_at, created_at, merchants(name), store_locations(name, address, city), order_items(id, product_name, quantity, unit_price_kobo, line_total_kobo)')
-    .eq('receipt_token', token)
+    .select('id, status, total_kobo, currency, paid_at, created_at, merchants(name), store_locations(name, address, city), order_items(id, product_name, quantity, unit_price_kobo, line_total_kobo)')
+    .eq('id', token)
     .maybeSingle()
 
   if (!order || !['paid', 'preparing', 'ready_for_exit', 'exited', 'refunded'].includes(order.status)) {
@@ -32,6 +32,8 @@ export default async function ReceiptPage({
     line_total_kobo: number
   }[]
   const orderUuid = order.id
+  const shortCode = order.id.replaceAll('-', '').slice(0, 6).toUpperCase()
+  const purchaseCode = `GLD-${order.id.replaceAll('-', '').slice(0, 10).toUpperCase()}`
 
   return (
     <main className="receipt-page live-token-page">
@@ -61,7 +63,7 @@ export default async function ReceiptPage({
         </section>
 
         <dl className="receipt-meta">
-          <div><dt>Order</dt><dd>#{order.short_code}</dd></div>
+          <div><dt>Order</dt><dd>#{shortCode}</dd></div>
           <div><dt>Paid</dt><dd>{formatDateTime(order.paid_at ?? order.created_at)}</dd></div>
           <div><dt>Status</dt><dd>{order.status.replaceAll('_', ' ')}</dd></div>
           <div><dt>UUID</dt><dd>{orderUuid}</dd></div>
@@ -88,7 +90,7 @@ export default async function ReceiptPage({
             alt={`Secure order QR code ${orderUuid}`}
           />
           <strong>{orderUuid}</strong>
-          <small>Fallback code: {order.purchase_code}</small>
+          <small>Fallback code: {purchaseCode}</small>
         </section>
 
         <footer><span>Verified by Glide</span><span>Merchant counter parse token</span></footer>

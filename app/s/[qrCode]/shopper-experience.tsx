@@ -1,6 +1,6 @@
 'use client'
 
-import { startTransition, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { startTransition, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { formatNaira } from '@/lib/store/format'
 
@@ -23,6 +23,19 @@ type CartEntry = CartLine & {
 }
 
 type ShopperStage = 'discovery' | 'dashboard' | 'cart' | 'checkout'
+type CameraState = 'idle' | 'starting' | 'live' | 'unsupported' | 'blocked'
+
+type BarcodeDetectorLike = {
+  detect(source: HTMLVideoElement): Promise<Array<{ rawValue?: string }>>
+}
+
+declare global {
+  interface Window {
+    BarcodeDetector?: {
+      new (options?: { formats?: string[] }): BarcodeDetectorLike
+    }
+  }
+}
 
 type ShopperExperienceProps = {
   qrCode: string
@@ -67,7 +80,6 @@ export function ShopperExperience({
   const cartKey = `glide-cart:${storageScope}`
   const cartOrderKey = `glide-cart-order:${storageScope}`
   const sessionKey = `glide-guest-session:${storageScope}`
-  const emailKey = `glide-email:${storageScope}`
 
   const [stage, setStage] = useState<ShopperStage>(initialStarted ? 'dashboard' : 'discovery')
   const [hydrated, setHydrated] = useState(false)
@@ -77,12 +89,15 @@ export function ShopperExperience({
   const [manualCode, setManualCode] = useState('')
   const [activeProduct, setActiveProduct] = useState<Product | null>(null)
   const [activeQuantity, setActiveQuantity] = useState(1)
-  const [customerEmail, setCustomerEmail] = useState('')
   const [scanNotice, setScanNotice] = useState('')
+  const [cameraState, setCameraState] = useState<CameraState>('idle')
   const [checkoutError, setCheckoutError] = useState(
     paymentCancelled ? 'Payment was cancelled. Your staged cart is still ready.' : '',
   )
   const [checkoutBusy, setCheckoutBusy] = useState(false)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const frameRef = useRef<number | null>(null)
 
   const productById = useMemo(() => new Map(products.map((product) => [product.id, product])), [products])
 
@@ -140,10 +155,8 @@ export function ShopperExperience({
       }
     }
 
-    const storedEmail = localStorage.getItem(emailKey)
-    if (storedEmail) setCustomerEmail(storedEmail)
     setHydrated(true)
-  }, [cartKey, cartOrderKey, emailKey, hydrated, sessionKey, stage])
+  }, [cartKey, cartOrderKey, hydrated, sessionKey, stage])
 
   useEffect(() => {
     if (!hydrated) return
@@ -152,9 +165,12 @@ export function ShopperExperience({
   }, [cart, cartKey, cartOrder, cartOrderKey, hydrated])
 
   useEffect(() => {
-    if (!hydrated) return
-    if (customerEmail.trim()) localStorage.setItem(emailKey, customerEmail.trim())
-  }, [customerEmail, emailKey, hydrated])
+    return () => stopCamera()
+  }, [])
+
+  useEffect(() => {
+    if (stage !== 'dashboard') stopCamera()
+  }, [stage])
 
   function enterDashboard() {
     setStage('dashboard')
@@ -194,6 +210,83 @@ export function ShopperExperience({
     openScannedProduct(product)
   }
 
+  function stopCamera() {
+    if (frameRef.current) {
+      window.cancelAnimationFrame(frameRef.current)
+      frameRef.current = null
+    }
+
+    if (streamRef.current) {
+      for (const track of streamRef.current.getTracks()) track.stop()
+      streamRef.current = null
+    }
+
+    if (videoRef.current) videoRef.current.srcObject = null
+    setCameraState((current) => (current === 'live' || current === 'starting' ? 'idle' : current))
+  }
+
+  async function requestCamera() {
+    setScanNotice('')
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraState('unsupported')
+      setScanNotice('This browser cannot open the camera. Type the barcode instead.')
+      return
+    }
+
+    setCameraState('starting')
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false,
+      })
+
+      streamRef.current = stream
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        await videoRef.current.play()
+      }
+
+      setCameraState('live')
+
+      if (!window.BarcodeDetector || !videoRef.current) return
+
+      const detector = new window.BarcodeDetector({
+        formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128'],
+      })
+
+      const scanFrame = async () => {
+        const video = videoRef.current
+        if (!video || cameraState === 'blocked') return
+
+        try {
+          const results = await detector.detect(video)
+          const barcode = results[0]?.rawValue
+          if (barcode) {
+            const product = findScannedProduct(barcode)
+            if (product) {
+              openScannedProduct(product)
+              stopCamera()
+              return
+            }
+          }
+        } catch {
+          // Keep the camera alive; manual entry remains available.
+        }
+
+        frameRef.current = window.requestAnimationFrame(() => {
+          void scanFrame()
+        })
+      }
+
+      void scanFrame()
+    } catch {
+      setCameraState('blocked')
+      setScanNotice('Camera permission is required to scan. Allow camera access or type the barcode below.')
+    }
+  }
+
   function updateCart(productId: string, quantity: number) {
     setCart((current) => {
       const next = { ...current }
@@ -227,11 +320,6 @@ export function ShopperExperience({
       return
     }
 
-    if (!customerEmail.trim()) {
-      setCheckoutError('Enter an email so Paystack can issue the payment receipt.')
-      return
-    }
-
     setCheckoutBusy(true)
     setCheckoutError('')
     setStage('checkout')
@@ -243,7 +331,6 @@ export function ShopperExperience({
         qrCode,
         merchantId,
         locationId,
-        customerEmail: customerEmail.trim(),
         sessionId: guestSessionId,
         items: cartEntries.map((entry) => ({
           productId: entry.productId,
@@ -298,17 +385,15 @@ export function ShopperExperience({
               <strong>{merchant.name}</strong>
               <small>{storeLine}</small>
             </div>
-            <button className="queue-header-total" type="button" onClick={() => setStage('cart')}>
-              <span>Total</span>
-              <strong>{formatNaira(totalKobo)}</strong>
-            </button>
           </header>
 
           {stage === 'dashboard' || stage === 'checkout' ? (
             <div className="queue-dashboard">
               <section className="queue-camera-module">
                 <div className="queue-camera-view" aria-label="Barcode scanner placeholder">
-                  <div className="queue-camera-grid" />
+                  {cameraState === 'live' || cameraState === 'starting' ? (
+                    <video ref={videoRef} playsInline muted />
+                  ) : null}
                   <div className="queue-camera-frame">
                     <span />
                     <span />
@@ -316,14 +401,27 @@ export function ShopperExperience({
                     <span />
                   </div>
                   <div className="queue-camera-copy">
-                    <span>In-browser scanner</span>
-                    <strong>Camera view ready</strong>
-                    <small>Point at a product barcode to stage an item.</small>
+                    <span>{cameraState === 'live' ? 'Scanner live' : 'Camera access'}</span>
+                    <strong>{cameraState === 'live' ? 'Scan barcode' : 'Allow camera usage'}</strong>
+                    <small>
+                      {cameraState === 'live'
+                        ? 'Point at the product barcode.'
+                        : 'Glide needs your camera to scan items quickly.'}
+                    </small>
+                    {cameraState !== 'live' ? (
+                      <button className="queue-camera-button" type="button" onClick={() => void requestCamera()}>
+                        {cameraState === 'starting' ? 'Opening camera...' : 'Allow Camera'}
+                      </button>
+                    ) : (
+                      <button className="queue-camera-button subtle" type="button" onClick={stopCamera}>
+                        Stop Camera
+                      </button>
+                    )}
                   </div>
                 </div>
 
                 <form className="queue-manual-scan" onSubmit={simulateScan}>
-                  <label htmlFor="mock-product-id">Manual simulation</label>
+                  <label htmlFor="mock-product-id">Can&apos;t scan?</label>
                   <div>
                     <input
                       id="mock-product-id"
@@ -332,24 +430,14 @@ export function ShopperExperience({
                         setManualCode(event.target.value)
                         setScanNotice('')
                       }}
-                      placeholder="Type mock product ID or barcode"
+                      placeholder="Type barcode"
                       autoComplete="off"
                     />
-                    <button type="submit">Simulate</button>
+                    <button type="submit">Add</button>
                   </div>
                 </form>
 
                 {scanNotice ? <p className="queue-alert">{scanNotice}</p> : null}
-
-                <div className="queue-product-shortcuts">
-                  {products.slice(0, 4).map((product) => (
-                    <button key={product.id} type="button" onClick={() => openScannedProduct(product)}>
-                      <span>{product.category || 'Item'}</span>
-                      <strong>{product.name}</strong>
-                      <small>{formatNaira(product.priceKobo)}</small>
-                    </button>
-                  ))}
-                </div>
               </section>
             </div>
           ) : null}
@@ -397,21 +485,6 @@ export function ShopperExperience({
                   </div>
                 )}
               </div>
-
-              <label className="queue-email-field" htmlFor="queue-customer-email">
-                <span>Receipt email</span>
-                <input
-                  id="queue-customer-email"
-                  value={customerEmail}
-                  onChange={(event) => {
-                    setCustomerEmail(event.target.value)
-                    setCheckoutError('')
-                  }}
-                  type="email"
-                  placeholder="name@example.com"
-                  autoComplete="email"
-                />
-              </label>
 
               {checkoutError ? <p className="queue-alert">{checkoutError}</p> : null}
 

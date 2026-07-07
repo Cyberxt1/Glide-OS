@@ -22,15 +22,47 @@ function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 }
 
+function createGuestEmail(sessionId?: string) {
+  const safeSession = (sessionId ?? randomBytes(6).toString('hex'))
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .slice(0, 18)
+
+  return `guest-${safeSession || randomBytes(6).toString('hex')}@glidecheckout.com`
+}
+
+function checkoutError(message: string, status: number, cause?: unknown) {
+  if (cause) {
+    console.error(`[checkout] ${message}`, cause)
+  }
+
+  const detail =
+    process.env.NODE_ENV === 'production' || !cause
+      ? undefined
+      : cause instanceof Error
+        ? cause.message
+        : typeof cause === 'object' && cause !== null && 'message' in cause
+          ? String((cause as { message?: unknown }).message)
+          : String(cause)
+
+  return NextResponse.json({ error: message, detail }, { status })
+}
+
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as CheckoutPayload | null
   const qrCode = body?.qrCode?.trim()
-  const customerEmail = body?.customerEmail?.trim().toLowerCase()
+  const submittedEmail = body?.customerEmail?.trim().toLowerCase()
   const items = body?.items ?? []
 
-  if (!qrCode || !customerEmail || !isValidEmail(customerEmail)) {
-    return NextResponse.json({ error: 'A valid customer email is required.' }, { status: 400 })
+  if (!qrCode) {
+    return NextResponse.json({ error: 'This store QR is no longer active.' }, { status: 400 })
   }
+
+  if (submittedEmail && !isValidEmail(submittedEmail)) {
+    return NextResponse.json({ error: 'Enter a valid receipt email.' }, { status: 400 })
+  }
+
+  const customerEmail = submittedEmail || createGuestEmail(body?.sessionId)
 
   if (!items.length) {
     return NextResponse.json({ error: 'Add at least one item before checkout.' }, { status: 400 })
@@ -135,17 +167,16 @@ export async function POST(request: Request) {
       merchant_id: qr.merchant_id,
       location_id: qr.location_id,
       qr_code_id: qr.id,
-      customer_email: customerEmail,
       payment_reference: reference,
       status: 'pending_payment',
       items: cleanOrderItems,
       total_kobo: totalKobo,
     })
-    .select('id, receipt_token')
+    .select('id')
     .single()
 
   if (orderError || !order) {
-    return NextResponse.json({ error: 'The order could not be created.' }, { status: 500 })
+    return checkoutError('The order could not be created.', 500, orderError)
   }
 
   const { error: itemsError } = await supabase.from('order_items').insert(
@@ -160,7 +191,7 @@ export async function POST(request: Request) {
 
   if (itemsError) {
     await supabase.from('orders').delete().eq('id', order.id)
-    return NextResponse.json({ error: 'The order items could not be saved.' }, { status: 500 })
+    return checkoutError('The order items could not be saved.', 500, itemsError)
   }
 
   const paystackSecret = process.env.PAYSTACK_SECRET_KEY
@@ -174,7 +205,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Payments are not configured yet.' }, { status: 503 })
   }
 
-  const returnUrl = new URL(`/pay/${order.receipt_token}`, requestUrl).toString()
+  const returnUrl = new URL(`/pay/${order.id}`, requestUrl).toString()
   const initialization = await initializeTransaction({
     secret: paystackSecret,
     email: customerEmail,
@@ -183,13 +214,14 @@ export async function POST(request: Request) {
     callbackUrl: returnUrl,
     metadata: {
       cancel_action: `${returnUrl}?cancelled=1`,
-      glide_receipt_token: order.receipt_token,
+      glide_receipt_token: order.id,
       glide_session_id: body?.sessionId ?? null,
     },
   })
 
   const checkoutUrl = initialization?.data?.authorization_url
   if (!initialization?.status || !checkoutUrl) {
+    console.error('[checkout] Paystack initialization failed', initialization)
     await supabase
       .from('orders')
       .update({ status: 'payment_failed' })
@@ -202,7 +234,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     checkoutUrl,
     orderId: order.id,
-    receiptToken: order.receipt_token,
+    receiptToken: order.id,
     reference,
   })
 }

@@ -23,13 +23,6 @@ type PaystackVerification = {
   data?: PaystackCharge
 }
 
-type ReceiptOrder = {
-  customer_email: string | null
-  receipt_token: string
-  short_code: string
-  merchants: { name: string } | { name: string }[] | null
-}
-
 function hasValidSignature(rawBody: string, signature: string, secret: string) {
   const expected = createHmac('sha512', secret).update(rawBody).digest('hex')
   const receivedBuffer = Buffer.from(signature, 'utf8')
@@ -52,30 +45,6 @@ async function verifyTransaction(reference: string, secret: string) {
 
   if (!response.ok) return null
   return (await response.json()) as PaystackVerification
-}
-
-async function sendReceiptEmail(order: ReceiptOrder, requestUrl: string) {
-  const apiKey = process.env.RESEND_API_KEY
-  const from = process.env.RECEIPT_FROM_EMAIL
-  if (!apiKey || !from || !order.customer_email) return
-
-  const merchantValue = Array.isArray(order.merchants) ? order.merchants[0] : order.merchants
-  const merchantName = merchantValue?.name ?? 'your store'
-  const receiptUrl = new URL(`/receipt/${order.receipt_token}`, requestUrl).toString()
-
-  await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from,
-      to: [order.customer_email],
-      subject: `Your ${merchantName} receipt · ${order.short_code}`,
-      html: `<div style="font-family:Arial,sans-serif;color:#171914"><h1 style="letter-spacing:-1px">Payment verified.</h1><p>Your order <strong>#${order.short_code}</strong> at ${merchantName} is paid.</p><p><a href="${receiptUrl}" style="display:inline-block;padding:12px 18px;border-radius:999px;background:#171914;color:#fff;text-decoration:none">Open receipt and purchase barcode</a></p></div>`,
-    }),
-  }).catch(() => null)
 }
 
 export async function GET() {
@@ -132,7 +101,7 @@ export async function POST(request: Request) {
   const supabase = createAdminClient()
   const { data: order, error: orderError } = await supabase
     .from('orders')
-    .select('id, merchant_id, status, total_kobo, currency, customer_email, receipt_token, short_code, merchants(name)')
+    .select('id, merchant_id, status, total_kobo, currency')
     .eq('payment_reference', reference)
     .maybeSingle()
 
@@ -186,7 +155,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Payment could not be applied.' }, { status: 500 })
   }
 
-  await sendReceiptEmail(order as unknown as ReceiptOrder, request.url)
-
   return NextResponse.json({ received: true, matched: true })
 }
+

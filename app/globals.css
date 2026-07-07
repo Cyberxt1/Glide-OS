@@ -3841,6 +3841,501 @@ a:hover .arrow-down {
   }
 }
 
+/* Lean customer scan UI */
+.queue-app {
+  background:
+    radial-gradient(circle at 50% -12%, rgb(22 139 99 / 22%), transparent 23rem),
+    #071310;
+}
+
+.queue-jump-button,
+.queue-checkout-button,
+.queue-add-button,
+.queue-camera-button,
+.queue-running-footer {
+  background: #00d084;
+  color: #02110c;
+}
+
+.queue-jump-button:hover,
+.queue-checkout-button:hover,
+.queue-add-button:hover,
+.queue-camera-button:hover {
+  background: #2eeaa1;
+}
+
+.queue-shell {
+  width: min(100%, 30rem);
+  padding: 0.75rem 0.75rem 5.4rem;
+}
+
+.queue-header {
+  gap: 0.55rem;
+  padding: 0 0 0.55rem;
+}
+
+.queue-header div,
+.queue-header-total,
+.queue-camera-module,
+.queue-cart-view {
+  border-color: rgb(255 255 255 / 8%);
+  border-radius: 0.75rem;
+  background: #0b1c17;
+}
+
+.queue-header div,
+.queue-header-total {
+  padding: 0.7rem;
+}
+
+.queue-header span,
+.queue-camera-copy span,
+.queue-manual-scan label,
+.queue-cart-head span,
+.queue-cart-line span,
+.queue-email-field span,
+.queue-drawer-panel span {
+  color: #89a79b;
+}
+
+.queue-header small,
+.queue-camera-copy small,
+.queue-cart-line small {
+  color: #9bb3aa;
+}
+
+.queue-header-total {
+  border-color: rgb(0 208 132 / 28%);
+}
+
+.queue-camera-module {
+  padding: 0.6rem;
+}
+
+.queue-camera-view {
+  min-height: 15.5rem;
+  border-radius: 0.65rem;
+  background:
+    linear-gradient(180deg, rgb(7 19 16 / 12%), rgb(7 19 16 / 78%)),
+    #081613;
+}
+
+.queue-camera-grid {
+  display: none;
+}
+
+.queue-camera-view video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.queue-camera-frame {
+  inset: 22% 16%;
+  border-color: rgb(0 208 132 / 38%);
+}
+
+.queue-camera-frame span {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-color: #00d084;
+}
+
+.queue-camera-copy {
+  right: 0.75rem;
+  bottom: 0.75rem;
+  left: 0.75rem;
+}
+
+.queue-camera-copy strong {
+  font-size: 1.35rem;
+}
+
+.queue-camera-copy small {
+  max-width: 14rem;
+  font-size: 0.78rem;
+}
+
+.queue-camera-button {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.8rem;
+  padding: 0 1rem;
+  border: 0;
+  border-radius: 0.55rem;
+  cursor: pointer;
+  font-weight: 850;
+}
+
+.queue-camera-button.subtle {
+  border: 1px solid rgb(255 255 255 / 12%);
+  background: rgb(7 19 16 / 78%);
+  color: #f4fff9;
+}
+
+.queue-manual-scan {
+  margin-top: 0.55rem;
+  padding: 0.65rem;
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 0.65rem;
+  background: #081613;
+}
+
+.queue-manual-scan div {
+  gap: 0.45rem;
+  margin-top: 0.4rem;
+}
+
+.queue-manual-scan input,
+.queue-email-field input {
+  height: 3rem;
+  border-color: rgb(255 255 255 / 10%);
+  border-radius: 0.55rem;
+  background: #071310;
+}
+
+.queue-manual-scan input:focus,
+.queue-email-field input:focus {
+  border-color: #00d084;
+}
+
+.queue-manual-scan button {
+  min-width: 4.75rem;
+  border: 0;
+  border-radius: 0.55rem;
+  background: #00d084;
+  color: #02110c;
+}
+
+.queue-alert {
+  margin-top: 0.55rem;
+  border-color: rgb(255 255 255 / 10%);
+  background: #13251f;
+  color: #d9fff0;
+}
+
+.queue-running-footer {
+  min-height: 3.65rem;
+  border: 0;
+  border-radius: 0.75rem;
+  box-shadow: 0 1rem 2.4rem rgb(0 0 0 / 38%);
+}
+
+.queue-product-shortcuts {
+  display: none;
+}
+
+@media (max-width: 520px) {
+  .queue-camera-view {
+    min-height: 14rem;
+  }
+
+  .queue-camera-copy strong {
+    font-size: 1.2rem;
+  }
+}
+
+/* Customer PWA light pass */
+.queue-app {
+  background:
+    radial-gradient(circle at 50% -8%, rgb(0 245 139 / 26%), transparent 18rem),
+    linear-gradient(180deg, #fbfff9 0%, #eef8f0 100%);
+  color: #071310;
+}
+
+.queue-splash {
+  color: #071310;
+}
+
+.queue-splash-top,
+.queue-splash-bottom {
+  border-color: rgb(7 19 16 / 10%);
+  color: #65756d;
+}
+
+.queue-splash-top strong,
+.queue-splash-center h1 {
+  color: #071310;
+}
+
+.queue-splash-center p {
+  color: #3f5149;
+}
+
+.queue-jump-button,
+.queue-checkout-button,
+.queue-add-button,
+.queue-camera-button,
+.queue-running-footer {
+  background: #00f58b;
+  color: #02110c;
+  box-shadow: 0 1rem 2rem rgb(0 245 139 / 22%);
+}
+
+.queue-jump-button:hover,
+.queue-checkout-button:hover,
+.queue-add-button:hover,
+.queue-camera-button:hover {
+  background: #32ffa5;
+}
+
+.queue-shell {
+  width: min(100%, 28rem);
+  padding: 0.9rem 0.9rem 5.6rem;
+}
+
+.queue-header {
+  position: relative;
+  grid-template-columns: 1fr;
+  gap: 0;
+  padding: 0 0 0.8rem;
+  background: transparent;
+}
+
+.queue-header div {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.35rem 0.15rem;
+}
+
+.queue-header-total {
+  display: none;
+}
+
+.queue-header span,
+.queue-camera-copy span,
+.queue-manual-scan label,
+.queue-cart-head span,
+.queue-cart-line span,
+.queue-email-field span,
+.queue-drawer-panel span {
+  color: #668076;
+}
+
+.queue-header strong,
+.queue-cart-head strong,
+.queue-cart-line strong,
+.queue-drawer-panel h2,
+.queue-drawer-panel div > strong {
+  color: #071310;
+}
+
+.queue-header small,
+.queue-camera-copy small,
+.queue-cart-line small,
+.queue-drawer-panel p {
+  color: #60726b;
+}
+
+.queue-camera-module,
+.queue-cart-view {
+  border: 0;
+  border-radius: 1.15rem;
+  background: #ffffff;
+  box-shadow: 0 1.25rem 3rem rgb(7 19 16 / 10%);
+}
+
+.queue-camera-module {
+  padding: 0.7rem;
+}
+
+.queue-camera-view {
+  min-height: 13.75rem;
+  border-radius: 0.9rem;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 20%), rgb(3 42 29 / 70%)),
+    linear-gradient(135deg, #d9ffe9, #07351f);
+}
+
+.queue-camera-frame {
+  inset: 24% 18%;
+  border: 0;
+}
+
+.queue-camera-frame span {
+  width: 1.35rem;
+  height: 1.35rem;
+  border-color: #00f58b;
+}
+
+.queue-camera-copy {
+  right: 0.85rem;
+  bottom: 0.85rem;
+  left: 0.85rem;
+}
+
+.queue-camera-copy span,
+.queue-camera-copy strong,
+.queue-camera-copy small {
+  color: #fff;
+}
+
+.queue-camera-copy strong {
+  font-size: 1.28rem;
+}
+
+.queue-camera-button {
+  min-height: 2.8rem;
+  border-radius: 0.75rem;
+}
+
+.queue-camera-button.subtle {
+  border: 0;
+  background: rgb(255 255 255 / 92%);
+  color: #07351f;
+  box-shadow: none;
+}
+
+.queue-manual-scan {
+  margin-top: 0.75rem;
+  padding: 0.2rem 0.05rem 0;
+  border: 0;
+  background: transparent;
+}
+
+.queue-manual-scan div {
+  gap: 0.55rem;
+}
+
+.queue-manual-scan input,
+.queue-email-field input {
+  height: 3.15rem;
+  border: 0;
+  border-radius: 0.8rem;
+  background: #f2f8f3;
+  color: #071310;
+}
+
+.queue-manual-scan input:focus,
+.queue-email-field input:focus {
+  outline: 2px solid #00f58b;
+  outline-offset: 2px;
+}
+
+.queue-manual-scan button {
+  min-width: 4.5rem;
+  border-radius: 0.8rem;
+  background: #071310;
+  color: #fff;
+}
+
+.queue-alert {
+  border: 0;
+  border-radius: 0.85rem;
+  background: #eafff3;
+  color: #0d4b30;
+}
+
+.queue-cart-view {
+  padding: 1rem;
+}
+
+.queue-cart-head {
+  align-items: flex-start;
+  padding-bottom: 0.9rem;
+}
+
+.queue-cart-head button,
+.queue-cart-actions > button:first-child,
+.queue-remove-line {
+  border: 0;
+  border-radius: 0.75rem;
+  background: #f0f6f2;
+  color: #071310;
+}
+
+.queue-cart-list {
+  gap: 0.8rem;
+  margin-top: 0;
+}
+
+.queue-cart-line {
+  grid-template-columns: 1fr;
+  gap: 0.85rem;
+  padding: 1rem;
+  border: 0;
+  border-radius: 1rem;
+  background: #f7fbf7;
+}
+
+.queue-line-controls {
+  width: fit-content;
+  border: 0;
+  border-radius: 0.8rem;
+  background: #eaf3ed;
+}
+
+.queue-line-controls button,
+.queue-drawer-controls button {
+  background: #071310;
+  color: #fff;
+}
+
+.queue-line-controls output,
+.queue-drawer-controls output {
+  color: #071310;
+}
+
+.queue-remove-line {
+  min-height: 2.6rem;
+  color: #8a3127;
+}
+
+.queue-empty-cart {
+  border: 0;
+  border-radius: 1rem;
+  background: #f7fbf7;
+  color: #60726b;
+}
+
+.queue-empty-cart strong {
+  color: #071310;
+}
+
+.queue-cart-actions {
+  grid-template-columns: 4.5rem 1fr;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.queue-cart-actions button {
+  min-height: 3.35rem;
+}
+
+.queue-running-footer {
+  min-height: 3.75rem;
+  border-radius: 1rem;
+  box-shadow: 0 1rem 2.2rem rgb(7 19 16 / 18%);
+}
+
+.queue-drawer-panel {
+  border: 0;
+  border-radius: 1.2rem 1.2rem 0 0;
+  background: #fff;
+  color: #071310;
+}
+
+.queue-drawer-controls {
+  border: 0;
+  border-radius: 0.85rem;
+  background: #eaf3ed;
+}
+
+@media (max-width: 520px) {
+  .queue-shell {
+    padding: 0.85rem 0.85rem 5.4rem;
+  }
+
+  .queue-camera-view {
+    min-height: 13rem;
+  }
+}
+
 /* Glide landing operating system */
 .landing-os {
   min-height: 100svh;

@@ -21,10 +21,6 @@ export async function GET(
         id,
         merchant_id,
         qr_code_id,
-        receipt_token,
-        short_code,
-        purchase_code,
-        customer_email,
         payment_reference,
         status,
         total_kobo,
@@ -32,7 +28,7 @@ export async function GET(
         paid_at,
         qr_codes(code)
       `)
-      .eq('receipt_token', receiptToken)
+      .eq('id', receiptToken)
       .maybeSingle()
 
   let { data: order } = await fetchOrder()
@@ -77,16 +73,15 @@ export async function GET(
     id: order.id,
     merchantId: order.merchant_id,
     qrCode,
-    receiptToken: order.receipt_token,
-    shortCode: order.short_code,
-    purchaseCode: order.purchase_code,
-    customerEmail: order.customer_email,
+    receiptToken: order.id,
+    shortCode: order.id.replaceAll('-', '').slice(0, 6).toUpperCase(),
+    purchaseCode: `GLD-${order.id.replaceAll('-', '').slice(0, 10).toUpperCase()}`,
     status: order.status,
     paidAt: order.paid_at,
     totalKobo: order.total_kobo,
     receiptUrl:
       ['paid', 'preparing', 'ready_for_exit', 'exited', 'refunded'].includes(order.status)
-        ? `/receipt/${order.receipt_token}`
+        ? `/receipt/${order.id}`
         : null,
     returnUrl: qrCode ? `/s/${qrCode}?start=1` : null,
   })
