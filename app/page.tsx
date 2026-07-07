@@ -1,23 +1,34 @@
-const steps = [
+import { StoreLookup } from './store-lookup'
+
+export const dynamic = 'force-static'
+
+const pillars = [
   {
-    number: '01',
     title: 'Scan',
-    body: 'A counter QR opens the right store instantly. No download. No account wall.',
+    body: 'Customers scan a localized counter or shelf QR code to launch an instant, zero-download digital inventory ledger directly in their native phone browser.',
   },
   {
-    number: '02',
-    title: 'Pick',
-    body: 'Choose what you want from a live menu built for one-handed, high-speed shopping.',
-  },
-  {
-    number: '03',
     title: 'Pay',
-    body: 'Glide validates every price securely, then completes payment in a few clean taps.',
+    body: 'Items are added to a secure, server-verified basket. Checkout triggers a direct, lightning-fast web transfer link handled securely via Paystack.',
   },
   {
-    number: '04',
-    title: 'Go',
-    body: 'Your verified exit pass appears while the paid order lands at the counter in real time.',
+    title: 'Pass',
+    body: 'Successful payment generates a dynamic, synchronized visual exit token. Store security inspects the token barcode at the gate for instant loss prevention clearance.',
+  },
+]
+
+const ledger = [
+  {
+    title: 'Anti-Fraud Clearance',
+    body: 'Dynamic, clock-synchronized exit tokens prevent screenshot reuse at the exit gate and keep every paid basket inspectable.',
+  },
+  {
+    title: 'Terminal Lockdown',
+    body: 'Hardware fingerprinting and location-binding protocols restrict staff dashboard access to authorized devices inside the physical store network.',
+  },
+  {
+    title: 'Isolated Liquidity',
+    body: 'Transaction funds split automatically at purchase, routing merchant earnings directly to their bank accounts while separating platform fees.',
   },
 ]
 
@@ -29,154 +40,98 @@ function GlideMark() {
   )
 }
 
-function Arrow({ direction = 'right' }: { direction?: 'right' | 'down' }) {
-  return (
-    <svg
-      className={direction === 'down' ? 'arrow arrow-down' : 'arrow'}
-      viewBox="0 0 20 20"
-      fill="none"
-      aria-hidden="true"
-    >
-      <path d="M3 10h13M11 5l5 5-5 5" stroke="currentColor" strokeWidth="1.5" />
-    </svg>
-  )
-}
-
 export default function HomePage() {
+  const demoScanUrl = process.env.NEXT_PUBLIC_DEMO_SCAN_URL || '#store-lookup'
+  const databaseStatus = process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Operational' : 'Configuration Required'
+  const paystackStatus = process.env.PAYSTACK_SECRET_KEY ? 'Nominal' : 'Setup Required'
+
   return (
-    <main>
-      <section className="hero-section" id="top">
-        <nav className="site-nav" aria-label="Primary navigation">
-          <a className="brand" href="#top" aria-label="Glide home">
-            <GlideMark />
-            Glide
-          </a>
-
-          <div className="nav-links">
-            <a href="#flow">How it works</a>
-            <a href="#merchant">For merchants</a>
-          </div>
-
-          <a className="nav-action" href="#merchant">
-            Enter the flow
-            <Arrow />
-          </a>
-        </nav>
-
-        <div className="hero-aura" aria-hidden="true">
-          <div className="aura-line aura-line-one" />
-          <div className="aura-line aura-line-two" />
-          <div className="aura-line aura-line-three" />
-          <div className="moving-signal">
-            <span />
-          </div>
-        </div>
-
-        <div className="hero-content">
-          <p className="eyebrow">
-            <span />
-            Retail at full speed
-          </p>
-          <h1>
-            Move through.
-            <br />
-            <span>Not the queue.</span>
-          </h1>
-          <div className="hero-intro">
-            <p>
-              Scan. Shop. Pay. Leave. Glide turns any busy counter into a seamless
-              self-checkout experience.
-            </p>
-            <a className="text-action" href="#flow">
-              See how it moves
-              <Arrow direction="down" />
-            </a>
-          </div>
-        </div>
-
-        <div className="hero-foot">
-          <p>Built for the rush</p>
-          <p className="flow-sequence">
-            <span>Scan</span>
-            <i />
-            <span>Pick</span>
-            <i />
-            <span>Pay</span>
-            <i />
-            <span>Go</span>
-          </p>
-          <p>Glide / 001</p>
-        </div>
-      </section>
-
-      <section className="flow-section" id="flow">
-        <div className="section-heading">
-          <p className="section-index">01 / The movement</p>
-          <h2>
-            One scan.
-            <br />
-            Everything flows.
-          </h2>
-          <p className="section-note">
-            Made for the moments when every second at the counter matters.
-          </p>
-        </div>
-
-        <ol className="flow-list">
-          {steps.map((step) => (
-            <li key={step.number}>
-              <span className="step-number">{step.number}</span>
-              <h3>{step.title}</h3>
-              <p>{step.body}</p>
-              <span className="step-line" aria-hidden="true" />
-            </li>
-          ))}
-        </ol>
-      </section>
-
-      <section className="merchant-section" id="merchant">
-        <div className="merchant-orbit" aria-hidden="true">
-          <span className="orbit orbit-one" />
-          <span className="orbit orbit-two" />
-          <span className="orbit orbit-three" />
-          <span className="orbit-core">
-            <GlideMark />
+    <main className="landing-os">
+      <header className="global-header">
+        <a className="landing-brand" href="/" aria-label="Glide home">
+          <GlideMark />
+          <span>
+            <strong>Glide</strong>
+            <small>Operating system by SpaceV</small>
           </span>
-        </div>
+        </a>
+        <nav className="global-actions" aria-label="Merchant navigation">
+          <a href="/login">Merchant Login</a>
+          <a className="register-action" href="/register">Register Store</a>
+        </nav>
+      </header>
 
-        <div className="merchant-topline">
-          <p className="section-index">02 / The operating system</p>
-          <p>Customer calm. Counter clarity.</p>
-        </div>
-
-        <div className="merchant-copy">
-          <h2>
-            Your busiest hour
-            <br />
-            should be your <em>best.</em>
-          </h2>
-          <div className="merchant-summary">
-            <p>
-              Glide keeps orders moving, payments verified, and your team focused on
-              serving—not managing a queue.
-            </p>
-            <a className="primary-action" href="#flow">
-              Discover the Glide flow
-              <Arrow />
-            </a>
-            <span className="availability">Pilot access opening soon</span>
+      <section className="landing-hero">
+        <div className="hero-command">
+          <p>Self-checkout infrastructure for dense retail environments</p>
+          <h1>Vaporize Retail Checkout Queues.</h1>
+          <span>
+            A zero-download, high-velocity self-checkout utility built to eliminate
+            transaction friction and loss in dense consumer hubs.
+          </span>
+          <div className="hero-command-actions">
+            <a className="deploy-action" href="/register">Deploy Glide in Your Store</a>
+            <a className="simulate-action" href={demoScanUrl}>Simulate a Customer Scan</a>
           </div>
         </div>
 
-        <footer>
-          <a className="brand" href="#top" aria-label="Back to the top">
-            <GlideMark />
-            Glide
-          </a>
-          <p>Queue-free retail, by design.</p>
-          <p>© 2026 Glide</p>
-        </footer>
+        <div id="store-lookup" className="route-interceptor">
+          <StoreLookup />
+        </div>
       </section>
+
+      <section className="pillar-section" id="operation">
+        <div className="landing-section-head">
+          <p>Operational loop</p>
+          <h2>How It Operates</h2>
+        </div>
+        <div className="pillar-grid">
+          {pillars.map((pillar, index) => (
+            <article key={pillar.title}>
+              <span>{String(index + 1).padStart(2, '0')}</span>
+              <h3>{pillar.title}</h3>
+              <p>{pillar.body}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="security-ledger" id="security">
+        <div className="landing-section-head">
+          <p>Security and compliance ledger</p>
+          <h2>Built for Rigorous Retail Environments.</h2>
+        </div>
+        <div className="ledger-matrix">
+          {ledger.map((item) => (
+            <article key={item.title}>
+              <strong>{item.title}</strong>
+              <p>{item.body}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <footer className="footer-hub">
+        <div>
+          <a className="landing-brand compact" href="/">
+            <GlideMark />
+            <span>
+              <strong>Glide</strong>
+              <small>SpaceV infrastructure</small>
+            </span>
+          </a>
+          <p>Copyright 2026 Glide and SpaceV. Platform v0.0.0.</p>
+        </div>
+        <div className="status-column">
+          <span>Database: {databaseStatus}</span>
+          <span>Paystack Gateway: {paystackStatus}</span>
+        </div>
+        <nav className="footer-links" aria-label="Operational links">
+          <a href="/privacy">Privacy Policy</a>
+          <a href="/terms">Terms of Infrastructure Use</a>
+          <a href="/docs">Developer Documentation</a>
+        </nav>
+      </footer>
     </main>
   )
 }
