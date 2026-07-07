@@ -68,7 +68,10 @@ export function RegisterForm({
       <label><span>Password</span><input name="password" type="password" autoComplete="new-password" minLength={8} required /></label>
       {error ? <p className="form-error">{error}</p> : null}
       {message ? <p className="form-success">{message}</p> : null}
-      <button type="submit" disabled={pending}>{pending ? 'Creating account…' : 'Continue'}<span aria-hidden="true">↗</span></button>
+      <button type="submit" disabled={pending}>
+        {pending ? 'Creating account...' : 'Continue'}
+        <span aria-hidden="true">-&gt;</span>
+      </button>
     </form>
   )
 }

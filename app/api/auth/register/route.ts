@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
 type RegistrationBody = {
@@ -40,6 +41,42 @@ export async function POST(request: Request) {
   }
 
   const supabase = await createClient()
+  const admin = process.env.SUPABASE_SECRET_KEY ? createAdminClient() : null
+
+  if (admin) {
+    const { error: createError } = await admin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+    })
+
+    if (createError) {
+      const message = createError.message.toLowerCase()
+      if (message.includes('already registered') || message.includes('already exists') || message.includes('already been registered')) {
+        return errorResponse('This email already has an account. Sign in instead.', 409)
+      }
+      return errorResponse(createError.message, 400)
+    }
+
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (signInError) {
+      return errorResponse('The account was created, but automatic sign-in failed. Please sign in manually.', 500)
+    }
+
+    if (nativeFormPost) {
+      return NextResponse.redirect(new URL('/setup', request.url), 303)
+    }
+
+    return NextResponse.json({
+      ok: true,
+      requiresConfirmation: false,
+    })
+  }
+
   const confirmationUrl = new URL('/auth/confirm?next=/setup', request.url).toString()
   const { data, error } = await supabase.auth.signUp({
     email,
