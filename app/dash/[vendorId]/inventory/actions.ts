@@ -65,12 +65,80 @@ export async function createProduct(vendorId: string, formData: FormData) {
 
 type BulkProductRow = {
   name: string
-  barcode: string
+  barcode: string | null
   price_kobo: number
   quantity: number
   category: string | null
   sku: string | null
   low_stock_threshold: number
+}
+
+type BulkColumnKey = keyof BulkProductRow | 'price'
+
+const columnAliases: Record<BulkColumnKey, string[]> = {
+  name: [
+    'name',
+    'product',
+    'product name',
+    'item',
+    'item name',
+    'description',
+    'product description',
+    'title',
+  ],
+  barcode: ['barcode', 'bar code', 'ean', 'ean13', 'ean 13', 'upc', 'code', 'product code', 'item code'],
+  price: ['price', 'selling price', 'sale price', 'retail price', 'amount', 'unit price', 'price ngn', 'price (ngn)', 'naira'],
+  price_kobo: ['price kobo', 'price_kobo', 'amount kobo'],
+  quantity: ['quantity', 'qty', 'stock', 'opening stock', 'stock quantity', 'inventory', 'on hand', 'available quantity'],
+  category: ['category', 'department', 'group', 'product category', 'class'],
+  sku: ['sku', 'stock keeping unit', 'item sku', 'product sku'],
+  low_stock_threshold: ['low_stock_threshold', 'low stock threshold', 'low stock', 'reorder level', 'minimum stock', 'min stock'],
+}
+
+const requiredImportColumns = ['name', 'price'] as const
+
+function normalizeHeader(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+}
+
+function normalizeUniqueValue(value: string | null) {
+  return value?.trim().toLowerCase() ?? ''
+}
+
+function parseInteger(value: string, fallback = 0) {
+  if (!value) return fallback
+  const cleaned = value.replace(/,/g, '').trim()
+  const parsed = Number(cleaned)
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : Number.NaN
+}
+
+function parsePriceKobo(value: string, header: string) {
+  const cleaned = value.replace(/[₦,\s]/g, '')
+  const parsed = Number(cleaned)
+  if (!Number.isFinite(parsed) || parsed < 0) return Number.NaN
+
+  return normalizeHeader(header).includes('kobo') ? Math.round(parsed) : Math.round(parsed * 100)
+}
+
+function findHeaderIndex(headers: string[], key: BulkColumnKey, override?: string) {
+  const normalizedHeaders = headers.map(normalizeHeader)
+  const normalizedOverride = normalizeHeader(override ?? '')
+
+  if (normalizedOverride) {
+    const overrideIndex = normalizedHeaders.indexOf(normalizedOverride)
+    if (overrideIndex >= 0) return overrideIndex
+  }
+
+  for (const alias of columnAliases[key]) {
+    const aliasIndex = normalizedHeaders.indexOf(normalizeHeader(alias))
+    if (aliasIndex >= 0) return aliasIndex
+  }
+
+  return -1
 }
 
 function parseCsv(text: string) {
@@ -107,28 +175,41 @@ function parseCsv(text: string) {
   return rows
 }
 
-function readBulkRows(csv: string): BulkProductRow[] | null {
+function readBulkRows(csv: string, formData: FormData): BulkProductRow[] | null {
   const parsed = parseCsv(csv.replace(/^\uFEFF/, ''))
   if (parsed.length < 2) return null
 
-  const headers = parsed[0].map((header) => header.trim().toLowerCase())
-  const requiredHeaders = ['name', 'barcode', 'price', 'quantity']
-  if (!requiredHeaders.every((header) => headers.includes(header))) return null
+  const headers = parsed[0].map((header) => header.trim())
+  const columnIndex = {
+    name: findHeaderIndex(headers, 'name', String(formData.get('map_name') ?? '')),
+    barcode: findHeaderIndex(headers, 'barcode', String(formData.get('map_barcode') ?? '')),
+    price: findHeaderIndex(headers, 'price', String(formData.get('map_price') ?? '')),
+    priceKobo: findHeaderIndex(headers, 'price_kobo', String(formData.get('map_price') ?? '')),
+    quantity: findHeaderIndex(headers, 'quantity', String(formData.get('map_quantity') ?? '')),
+    category: findHeaderIndex(headers, 'category', String(formData.get('map_category') ?? '')),
+    sku: findHeaderIndex(headers, 'sku', String(formData.get('map_sku') ?? '')),
+    lowStockThreshold: findHeaderIndex(headers, 'low_stock_threshold', String(formData.get('map_low_stock_threshold') ?? '')),
+  }
 
-  const value = (row: string[], key: string) => row[headers.indexOf(key)]?.trim() ?? ''
+  if (requiredImportColumns.some((key) => columnIndex[key] < 0 && (key !== 'price' || columnIndex.priceKobo < 0))) {
+    return null
+  }
+
+  const value = (row: string[], index: number) => (index >= 0 ? row[index]?.trim() ?? '' : '')
   const rows = parsed.slice(1).map((row) => {
-    const price = Number(value(row, 'price'))
-    const quantity = Number(value(row, 'quantity'))
-    const thresholdValue = value(row, 'low_stock_threshold')
-    const threshold = thresholdValue ? Number(thresholdValue) : 5
+    const priceIndex = columnIndex.price >= 0 ? columnIndex.price : columnIndex.priceKobo
+    const quantity = parseInteger(value(row, columnIndex.quantity), 0)
+    const threshold = parseInteger(value(row, columnIndex.lowStockThreshold), 5)
+    const barcode = value(row, columnIndex.barcode) || null
+    const sku = value(row, columnIndex.sku) || null
 
     return {
-      name: value(row, 'name'),
-      barcode: value(row, 'barcode'),
-      price_kobo: Math.round(price * 100),
+      name: value(row, columnIndex.name),
+      barcode,
+      price_kobo: parsePriceKobo(value(row, priceIndex), headers[priceIndex] ?? ''),
       quantity,
-      category: value(row, 'category') || null,
-      sku: value(row, 'sku') || null,
+      category: value(row, columnIndex.category) || null,
+      sku,
       low_stock_threshold: threshold,
     }
   })
@@ -136,7 +217,6 @@ function readBulkRows(csv: string): BulkProductRow[] | null {
   const valid = rows.every(
     (row) =>
       row.name &&
-      row.barcode &&
       Number.isInteger(row.price_kobo) &&
       row.price_kobo >= 0 &&
       Number.isInteger(row.quantity) &&
@@ -159,26 +239,47 @@ export async function bulkCreateProducts(vendorId: string, formData: FormData) {
     uploadedFile instanceof File && uploadedFile.size > 0
       ? await uploadedFile.text()
       : pastedCsv
-  const rows = readBulkRows(csv)
+  const rows = readBulkRows(csv, formData)
 
   if (!rows || rows.length === 0 || rows.length > 300) {
     redirect(`/dash/${vendorId}/inventory?bulkError=format`)
   }
 
-  const normalizedBarcodes = rows.map((row) => row.barcode.toLowerCase())
-  if (new Set(normalizedBarcodes).size !== normalizedBarcodes.length) {
+  const duplicatedInFile = (values: string[]) => values.length !== new Set(values).size
+  const normalizedBarcodes = rows.map((row) => normalizeUniqueValue(row.barcode)).filter(Boolean)
+  const normalizedNames = rows.map((row) => normalizeUniqueValue(row.name))
+  const normalizedSkus = rows.map((row) => normalizeUniqueValue(row.sku)).filter(Boolean)
+
+  if (
+    duplicatedInFile(normalizedBarcodes) ||
+    duplicatedInFile(normalizedNames) ||
+    duplicatedInFile(normalizedSkus)
+  ) {
     redirect(`/dash/${vendorId}/inventory?bulkError=duplicate-file`)
   }
 
   const supabase = await createClient()
-  const { data: existing, error: lookupError } = await supabase
-    .from('products')
-    .select('barcode')
-    .eq('merchant_id', store.id)
-    .in('barcode', rows.map((row) => row.barcode))
+  const barcodes = rows.map((row) => row.barcode).filter(Boolean) as string[]
+  const skus = rows.map((row) => row.sku).filter(Boolean) as string[]
+  const existingChecks = [
+    barcodes.length
+      ? supabase.from('products').select('barcode').eq('merchant_id', store.id).in('barcode', barcodes)
+      : Promise.resolve({ data: [], error: null }),
+    supabase.from('products').select('name').eq('merchant_id', store.id).in('name', rows.map((row) => row.name)),
+    skus.length
+      ? supabase.from('products').select('sku').eq('merchant_id', store.id).in('sku', skus)
+      : Promise.resolve({ data: [], error: null }),
+  ] as const
 
-  if (lookupError) redirect(`/dash/${vendorId}/inventory?bulkError=database`)
-  if (existing?.length) redirect(`/dash/${vendorId}/inventory?bulkError=duplicate-store`)
+  const [existingBarcodes, existingNames, existingSkus] = await Promise.all(existingChecks)
+
+  if (existingBarcodes.error || existingNames.error || existingSkus.error) {
+    redirect(`/dash/${vendorId}/inventory?bulkError=database`)
+  }
+
+  if (existingBarcodes.data?.length || existingNames.data?.length || existingSkus.data?.length) {
+    redirect(`/dash/${vendorId}/inventory?bulkError=duplicate-store`)
+  }
 
   const { data: products, error: productError } = await supabase
     .from('products')
@@ -193,15 +294,14 @@ export async function bulkCreateProducts(vendorId: string, formData: FormData) {
         tracks_inventory: true,
       })),
     )
-    .select('id, barcode')
+    .select('id')
 
   if (productError || !products || products.length !== rows.length) {
     redirect(`/dash/${vendorId}/inventory?bulkError=products`)
   }
 
-  const rowByBarcode = new Map(rows.map((row) => [row.barcode, row]))
-  const inventoryRows = products.map((product) => {
-    const row = rowByBarcode.get(product.barcode)!
+  const inventoryRows = products.map((product, index) => {
+    const row = rows[index]
     return {
       merchant_id: store.id,
       location_id: store.location!.id,
@@ -220,8 +320,8 @@ export async function bulkCreateProducts(vendorId: string, formData: FormData) {
     redirect(`/dash/${vendorId}/inventory?bulkError=inventory`)
   }
 
-  const movements = products.flatMap((product) => {
-    const row = rowByBarcode.get(product.barcode)!
+  const movements = products.flatMap((product, index) => {
+    const row = rows[index]
     return row.quantity > 0
       ? [{
           merchant_id: store.id,

@@ -529,6 +529,43 @@
   overflow-y: auto;
 }
 
+.column-mapper {
+  padding: 0.8rem;
+  border: 1px solid #dedfd8;
+  border-radius: 0.75rem;
+  background: #f7f8f3;
+}
+
+.column-mapper summary {
+  cursor: pointer;
+  color: #343730;
+  font-size: 0.68rem;
+  font-weight: 750;
+  list-style: none;
+}
+
+.column-mapper summary::-webkit-details-marker {
+  display: none;
+}
+
+.column-mapper p {
+  margin: 0.55rem 0 0.8rem;
+  color: #797c74;
+  font-size: 0.62rem;
+  line-height: 1.5;
+}
+
+.mapper-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+
+.action-drawer .mapper-grid input {
+  height: 2.75rem;
+  background: #fff;
+}
+
 .inventory-notice {
   margin: -1.2rem 0 1.25rem;
   padding: 0.85rem 1rem;
