@@ -51,8 +51,11 @@ export function PaymentStatus({ cancelled, receiptToken, reference }: PaymentSta
         if (successfulStatuses.has(next.status)) {
           if (next.merchantId && next.qrCode) {
             localStorage.removeItem(`glide-cart:${next.merchantId}:${next.qrCode}`)
+            localStorage.removeItem(`glide-cart-order:${next.merchantId}:${next.qrCode}`)
             localStorage.removeItem(`glide-session:${next.merchantId}:${next.qrCode}`)
+            localStorage.removeItem(`glide-guest-session:${next.merchantId}:${next.qrCode}`)
           }
+          if (next.receiptUrl) window.location.replace(next.receiptUrl)
           return
         }
 

@@ -5,7 +5,7 @@ import { ShopperExperience } from './shopper-experience'
 
 type ScanPageProps = {
   params: Promise<{ qrCode: string }>
-  searchParams: Promise<{ start?: string; cancelled?: string }>
+  searchParams: Promise<{ start?: string; cancelled?: string; vendor_id?: string }>
 }
 
 export default async function ScanPage({ params, searchParams }: ScanPageProps) {

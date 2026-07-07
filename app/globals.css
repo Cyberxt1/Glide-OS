@@ -3201,3 +3201,642 @@ a:hover .arrow-down {
     grid-column: 2;
   }
 }
+
+/* Queue-side state engine */
+.queue-app {
+  min-height: 100svh;
+  background:
+    radial-gradient(circle at 50% -10%, rgb(250 250 250 / 10%), transparent 26rem),
+    linear-gradient(180deg, #09090b, #000);
+  color: #fafafa;
+  font-family: "Inter", "Segoe UI", Arial, sans-serif;
+}
+
+.queue-app button,
+.queue-app input {
+  font: inherit;
+}
+
+.queue-splash {
+  display: grid;
+  min-height: 100svh;
+  grid-template-rows: auto 1fr auto;
+  padding: clamp(1rem, 4vw, 3rem);
+}
+
+.queue-splash-top,
+.queue-splash-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-color: rgb(255 255 255 / 12%);
+  color: #a1a1aa;
+  font-size: 0.72rem;
+}
+
+.queue-splash-top {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgb(255 255 255 / 12%);
+}
+
+.queue-splash-bottom {
+  padding-top: 1rem;
+  border-top: 1px solid rgb(255 255 255 / 12%);
+}
+
+.queue-splash-top strong {
+  color: #f4f4f5;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.68rem;
+}
+
+.queue-splash-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.queue-splash-center p {
+  margin: 0 0 1.2rem;
+  color: #d4d4d8;
+  font-size: clamp(1.05rem, 2vw, 1.35rem);
+  font-weight: 650;
+}
+
+.queue-splash-center h1 {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(4rem, 13vw, 10rem);
+  font-weight: 850;
+  letter-spacing: -0.07em;
+  line-height: 0.86;
+}
+
+.queue-jump-button,
+.queue-checkout-button,
+.queue-add-button {
+  border: 0;
+  background: #fafafa;
+  color: #09090b;
+  cursor: pointer;
+  font-weight: 850;
+  transition:
+    transform 180ms ease,
+    background 180ms ease,
+    opacity 180ms ease;
+}
+
+.queue-jump-button {
+  width: min(100%, 24rem);
+  min-height: 4.4rem;
+  margin-top: 2.5rem;
+  border-radius: 0.5rem;
+  font-size: 1.05rem;
+}
+
+.queue-jump-button:hover,
+.queue-checkout-button:hover,
+.queue-add-button:hover {
+  transform: translateY(-2px);
+  background: #e4e4e7;
+}
+
+.queue-shell {
+  width: min(100%, 34rem);
+  min-height: 100svh;
+  margin: 0 auto;
+  padding: 1rem 1rem 6.25rem;
+}
+
+.queue-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.85rem;
+  padding: 0.75rem 0 1rem;
+  background: linear-gradient(180deg, #09090b 72%, rgb(9 9 11 / 0));
+}
+
+.queue-header div,
+.queue-header-total,
+.queue-camera-module,
+.queue-cart-view {
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 0.5rem;
+  background: #111113;
+}
+
+.queue-header div {
+  min-width: 0;
+  padding: 0.85rem;
+}
+
+.queue-header span,
+.queue-camera-copy span,
+.queue-manual-scan label,
+.queue-product-shortcuts span,
+.queue-cart-head span,
+.queue-cart-line span,
+.queue-email-field span,
+.queue-drawer-panel span {
+  display: block;
+  color: #a1a1aa;
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.queue-header strong {
+  display: block;
+  overflow: hidden;
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-header small {
+  display: block;
+  overflow: hidden;
+  margin-top: 0.18rem;
+  color: #71717a;
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-header-total {
+  display: flex;
+  min-width: 7.7rem;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0.75rem;
+  color: #fff;
+  cursor: pointer;
+  text-align: left;
+}
+
+.queue-header-total strong {
+  font-size: 1rem;
+}
+
+.queue-dashboard {
+  animation: queue-rise 240ms ease both;
+}
+
+.queue-camera-module {
+  padding: 0.75rem;
+}
+
+.queue-camera-view {
+  position: relative;
+  min-height: clamp(22rem, 58svh, 34rem);
+  overflow: hidden;
+  border-radius: 0.45rem;
+  background:
+    linear-gradient(180deg, rgb(9 9 11 / 8%), rgb(9 9 11 / 86%)),
+    #18181b;
+}
+
+.queue-camera-grid {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(rgb(255 255 255 / 7%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 7%) 1px, transparent 1px);
+  background-size: 2.3rem 2.3rem;
+  opacity: 0.33;
+}
+
+.queue-camera-frame {
+  position: absolute;
+  inset: 18% 13%;
+  border: 1px solid rgb(250 250 250 / 24%);
+  border-radius: 0.45rem;
+}
+
+.queue-camera-frame span {
+  position: absolute;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-color: #fafafa;
+}
+
+.queue-camera-frame span:nth-child(1) {
+  top: -1px;
+  left: -1px;
+  border-top: 3px solid;
+  border-left: 3px solid;
+}
+
+.queue-camera-frame span:nth-child(2) {
+  top: -1px;
+  right: -1px;
+  border-top: 3px solid;
+  border-right: 3px solid;
+}
+
+.queue-camera-frame span:nth-child(3) {
+  right: -1px;
+  bottom: -1px;
+  border-right: 3px solid;
+  border-bottom: 3px solid;
+}
+
+.queue-camera-frame span:nth-child(4) {
+  bottom: -1px;
+  left: -1px;
+  border-bottom: 3px solid;
+  border-left: 3px solid;
+}
+
+.queue-camera-copy {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  left: 1rem;
+}
+
+.queue-camera-copy strong {
+  display: block;
+  color: #fff;
+  font-size: 1.75rem;
+  font-weight: 850;
+  letter-spacing: -0.04em;
+}
+
+.queue-camera-copy small {
+  display: block;
+  max-width: 17rem;
+  margin-top: 0.35rem;
+  color: #a1a1aa;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.queue-manual-scan {
+  margin-top: 0.75rem;
+}
+
+.queue-manual-scan div {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.55rem;
+  margin-top: 0.5rem;
+}
+
+.queue-manual-scan input,
+.queue-email-field input {
+  width: 100%;
+  height: 3.45rem;
+  border: 1px solid rgb(255 255 255 / 11%);
+  border-radius: 0.45rem;
+  outline: none;
+  background: #09090b;
+  color: #fafafa;
+  padding: 0 0.9rem;
+}
+
+.queue-manual-scan input:focus,
+.queue-email-field input:focus {
+  border-color: #f4f4f5;
+}
+
+.queue-manual-scan button {
+  min-width: 6.4rem;
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 0.45rem;
+  background: #27272a;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.queue-product-shortcuts {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+
+.queue-product-shortcuts button {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.4rem 0.75rem;
+  align-items: center;
+  padding: 0.8rem;
+  border: 1px solid rgb(255 255 255 / 9%);
+  border-radius: 0.45rem;
+  background: #09090b;
+  color: #fafafa;
+  cursor: pointer;
+  text-align: left;
+}
+
+.queue-product-shortcuts strong,
+.queue-cart-line strong {
+  color: #fff;
+  font-size: 0.95rem;
+}
+
+.queue-product-shortcuts small {
+  color: #d4d4d8;
+}
+
+.queue-alert {
+  margin: 0.75rem 0 0;
+  padding: 0.85rem;
+  border: 1px solid rgb(248 113 113 / 30%);
+  border-radius: 0.45rem;
+  background: rgb(127 29 29 / 25%);
+  color: #fecaca;
+  font-size: 0.8rem;
+}
+
+.queue-cart-view {
+  padding: 0.85rem;
+  animation: queue-rise 240ms ease both;
+}
+
+.queue-cart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.queue-cart-head button,
+.queue-cart-actions > button:first-child,
+.queue-remove-line {
+  border: 1px solid rgb(255 255 255 / 11%);
+  border-radius: 0.45rem;
+  background: #09090b;
+  color: #fafafa;
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.queue-cart-head button {
+  min-height: 2.7rem;
+  padding: 0 0.85rem;
+}
+
+.queue-cart-head strong {
+  display: block;
+  color: #fff;
+  font-size: 1.35rem;
+  font-weight: 850;
+  letter-spacing: -0.04em;
+  text-align: right;
+}
+
+.queue-cart-list {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.queue-cart-line {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.85rem;
+  border: 1px solid rgb(255 255 255 / 9%);
+  border-radius: 0.45rem;
+  background: #09090b;
+}
+
+.queue-cart-line small {
+  display: block;
+  margin-top: 0.25rem;
+  color: #a1a1aa;
+  font-size: 0.75rem;
+}
+
+.queue-line-controls {
+  display: grid;
+  grid-template-columns: 2.4rem 2.2rem 2.4rem;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 0.45rem;
+}
+
+.queue-line-controls button,
+.queue-drawer-controls button {
+  height: 2.4rem;
+  border: 0;
+  background: #27272a;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.queue-line-controls output,
+.queue-drawer-controls output {
+  color: #fff;
+  font-weight: 850;
+  text-align: center;
+}
+
+.queue-cart-line > strong {
+  grid-column: 1;
+  font-size: 1.1rem;
+}
+
+.queue-remove-line {
+  min-height: 2.4rem;
+  padding: 0 0.75rem;
+  color: #fca5a5;
+}
+
+.queue-empty-cart {
+  display: flex;
+  min-height: 10rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed rgb(255 255 255 / 14%);
+  border-radius: 0.45rem;
+  color: #a1a1aa;
+  text-align: center;
+}
+
+.queue-empty-cart strong {
+  color: #fff;
+}
+
+.queue-email-field {
+  display: block;
+  margin-top: 1rem;
+}
+
+.queue-email-field input {
+  margin-top: 0.5rem;
+}
+
+.queue-cart-actions {
+  display: grid;
+  grid-template-columns: 5rem 1fr;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.queue-cart-actions button {
+  min-height: 3.6rem;
+}
+
+.queue-cart-actions button:disabled,
+.queue-checkout-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  transform: none;
+}
+
+.queue-checkout-button,
+.queue-add-button {
+  border-radius: 0.45rem;
+}
+
+.queue-product-drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+}
+
+.queue-drawer-scrim {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgb(0 0 0 / 58%);
+}
+
+.queue-drawer-panel {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 34rem);
+  margin: 0 auto;
+  padding: 1rem;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 0.65rem 0.65rem 0 0;
+  background: #111113;
+  box-shadow: 0 -2rem 5rem rgb(0 0 0 / 48%);
+  animation: queue-drawer-up 240ms ease both;
+}
+
+.queue-drawer-panel h2 {
+  margin: 0.35rem 0 0;
+  color: #fff;
+  font-size: 2rem;
+  font-weight: 850;
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+
+.queue-drawer-panel p {
+  margin: 0.5rem 0 0;
+  color: #a1a1aa;
+}
+
+.queue-drawer-panel div > strong {
+  display: block;
+  margin-top: 1rem;
+  color: #fff;
+  font-size: 1.5rem;
+}
+
+.queue-drawer-controls {
+  display: grid;
+  grid-template-columns: 3rem 1fr 3rem;
+  align-items: center;
+  margin-top: 1.2rem;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 0.45rem;
+}
+
+.queue-add-button {
+  width: 100%;
+  min-height: 3.6rem;
+  margin-top: 0.75rem;
+}
+
+.queue-running-footer {
+  position: fixed;
+  right: max(1rem, calc((100vw - 34rem) / 2 + 1rem));
+  bottom: 1rem;
+  left: max(1rem, calc((100vw - 34rem) / 2 + 1rem));
+  z-index: 30;
+  display: flex;
+  min-height: 4rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0 1rem;
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 0.55rem;
+  background: #fafafa;
+  color: #09090b;
+  box-shadow: 0 1rem 3rem rgb(0 0 0 / 45%);
+  cursor: pointer;
+}
+
+.queue-running-footer span {
+  font-weight: 850;
+}
+
+.queue-running-footer strong {
+  font-size: 1.05rem;
+}
+
+@keyframes queue-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.6rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes queue-drawer-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 520px) {
+  .queue-splash-bottom {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .queue-header {
+    grid-template-columns: 1fr;
+  }
+
+  .queue-header-total {
+    min-width: 100%;
+  }
+
+  .queue-manual-scan div {
+    grid-template-columns: 1fr;
+  }
+
+  .queue-manual-scan button {
+    min-height: 3.25rem;
+  }
+}
