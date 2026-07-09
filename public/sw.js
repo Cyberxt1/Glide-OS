@@ -1,4 +1,4 @@
-const CACHE_NAME = 'glide-shell-v1'
+const CACHE_NAME = 'glide-shell-v2'
 const SHELL_ASSETS = ['/', '/manifest.webmanifest', '/favicon.svg']
 
 self.addEventListener('install', (event) => {
@@ -24,7 +24,12 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url)
 
   if (request.method !== 'GET' || url.origin !== self.location.origin) return
-  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/pay/') || url.pathname.startsWith('/receipt/')) return
+  if (
+    url.pathname.startsWith('/api/') ||
+    url.pathname.startsWith('/s/') ||
+    url.pathname.startsWith('/pay/') ||
+    url.pathname.startsWith('/receipt/')
+  ) return
 
   event.respondWith(
     caches.match(request).then((cached) => {

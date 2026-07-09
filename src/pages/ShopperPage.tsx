@@ -26,27 +26,50 @@ export function ShopperPage({ qrCode }: { qrCode: string }) {
   const [quantity, setQuantity] = useState(1)
   const [view, setView] = useState<'splash' | 'scan' | 'cart'>('splash')
   const [message, setMessage] = useState('')
+  const [resolved, setResolved] = useState(false)
   const [camera, setCamera] = useState<'idle' | 'starting' | 'live' | 'blocked'>('idle')
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
 
   useEffect(() => {
-    void supabase
-      .from('qr_codes')
-      .select('code, merchant_id, location_id, merchants(name, slug), store_locations(name, city)')
-      .eq('code', qrCode)
-      .eq('status', 'active')
-      .maybeSingle()
-      .then(async ({ data }) => {
-        if (!data?.merchant_id) return
+    let alive = true
+    setResolved(false)
+    setQr(null)
+    setProducts([])
+    async function loadStore() {
+      try {
+        const { data, error } = await supabase
+          .from('qr_codes')
+          .select('code, merchant_id, location_id, merchants(name, slug), store_locations(name, city)')
+          .eq('code', qrCode)
+          .eq('status', 'active')
+          .maybeSingle()
+
+        if (!alive) return
+        if (error || !data?.merchant_id) {
+          setResolved(true)
+          return
+        }
+
         setQr(data as unknown as QrContext)
         const { data: rows } = await supabase
           .from('products')
           .select('id, name, sku, barcode, category, price_kobo, is_available')
           .eq('merchant_id', data.merchant_id)
           .eq('is_available', true)
+
+        if (!alive) return
         setProducts((rows ?? []) as Product[])
-      })
+        setResolved(true)
+      } catch {
+        if (alive) setResolved(true)
+      }
+    }
+
+    void loadStore()
+    return () => {
+      alive = false
+    }
   }, [qrCode])
 
   useEffect(() => () => stopCamera(), [])
@@ -139,7 +162,23 @@ export function ShopperPage({ qrCode }: { qrCode: string }) {
     window.location.href = result.checkoutUrl
   }
 
-  if (!qr) return <main className="shopper"><section className="shop-card"><p>Opening store...</p></section></main>
+  if (!qr) {
+    return (
+      <main className="shopper">
+        <section className="shop-card">
+          {resolved ? (
+            <>
+              <h1>Store QR not active</h1>
+              <p>This QR code could not be matched to an active Glide store. Ask the store to open Store QR and regenerate it.</p>
+              <a className="button primary" href="/">Find store</a>
+            </>
+          ) : (
+            <p>Opening store...</p>
+          )}
+        </section>
+      </main>
+    )
+  }
 
   return (
     <main className="shopper">

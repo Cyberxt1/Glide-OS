@@ -1,5 +1,7 @@
 /api/paystack/webhook /.netlify/functions/paystack-webhook 200
 /api/* /.netlify/functions/:splat 200
+/s/:qrCode /index.html 200
+/s/:qrCode/* /index.html 200
 /s/* /index.html 200
 /pay/* /index.html 200
 /receipt/* /index.html 200
